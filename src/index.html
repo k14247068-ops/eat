@@ -31,28 +31,19 @@
       <h2 style="margin-bottom:15px;">メイン操作</h2>
       <div class="card">
         <button class="btn btn-red" id="recBtn" onclick="toggleRec()">🔴 録音する</button>
-        <button class="btn btn-blue" onclick="alert('録音データの保存先フォルダを開きます')">📁 録音データ一覧</button>
-        <button class="btn btn-blue" onclick="alert('文字起こしテキストの保存先を開きます')">📄 文字起こしデータ確認</button>
         <p id="status" style="margin-top:15px; color:#a6adc8;">ステータス: 待機中</p>
       </div>
       <div class="card">
-        <h3>リアルタイム文字起こし</h3>
+        <h3>リアルタイム文字起こし (準備中)</h3>
         <textarea rows="8" readonly placeholder="ここに文字起こしされたデータが表示されます..."></textarea>
       </div>
     </div>
+
     <div id="settings" class="section">
       <h2 style="margin-bottom:15px;">機能設定・AIチューター</h2>
       <div class="card">
         <label>🎙️ マイク設定</label>
-        <select><option>既定のマイク (システム標準)</option><option>外付けUSBマイク</option></select>
-      </div>
-      <div class="card">
-        <label>📂 データ保存先 (録音・テキスト)</label>
-        <input type="text" value="C:\Users\Public\Documents\WhisperApp" readonly />
-      </div>
-      <div class="card">
-        <label>🎙️ 録音方法・フォーマット</label>
-        <select><option>WAV (高音質)</option><option>MP3 (標準)</option></select>
+        <select><option>既定のマイク (システム標準)</option></select>
       </div>
       <div class="card">
         <label>🤖 AIチューター設定 (Whisperモデル)</label>
@@ -64,12 +55,56 @@
   </main>
   <script>
     let rec = false;
-    function toggleRec() {
-      rec = !rec;
-      document.getElementById('recBtn').textContent = rec ? '⏹️ 録音停止' : '🔴 録音する';
-      document.getElementById('recBtn').style.background = rec ? '#a6e3a1' : '#f38ba8';
-      document.getElementById('status').textContent = rec ? 'ステータス: 🎙️ 録音中...' : 'ステータス: 待機中';
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function toggleRec() {
+      const btn = document.getElementById('recBtn');
+      const status = document.getElementById('status');
+
+      if (!rec) {
+        try {
+          // マイクへのアクセス要求
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          
+          // 録音データが生成されるたびに保存
+          mediaRecorder.ondataavailable = event => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+          };
+          
+          // 録音停止時の処理（ファイルとしてダウンロード）
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const a = document.createElement('a');
+            a.href = audioUrl;
+            a.download = '録音データ_' + Date.now() + '.webm';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            status.textContent = 'ステータス: 録音完了！ファイルを保存しました。';
+          };
+
+          mediaRecorder.start();
+          rec = true;
+          btn.textContent = '⏹️ 録音停止';
+          btn.style.background = '#a6e3a1';
+          status.textContent = 'ステータス: 🎙️ 録音中... (マイクの許可を求められたら「はい」を押してください)';
+        } catch (err) {
+          alert('マイクにアクセスできませんでした。設定を確認してください。エラー: ' + err.message);
+        }
+      } else {
+        // 録音を停止する
+        mediaRecorder.stop();
+        rec = false;
+        btn.textContent = '🔴 録音する';
+        btn.style.background = '#f38ba8';
+        status.textContent = 'ステータス: 保存処理中...';
+      }
     }
+
     function showNav(id, btn) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
