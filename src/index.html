@@ -34,74 +34,76 @@
         <p id="status" style="margin-top:15px; color:#a6adc8;">ステータス: 待機中</p>
       </div>
       <div class="card">
-        <h3>リアルタイム文字起こし (準備中)</h3>
-        <textarea rows="8" readonly placeholder="ここに文字起こしされたデータが表示されます..."></textarea>
+        <h3>リアルタイム文字起こし結果</h3>
+        <textarea id="transcriptArea" rows="8" readonly placeholder="ここに文字起こしされたデータが表示されます..."></textarea>
       </div>
     </div>
-
     <div id="settings" class="section">
-      <h2 style="margin-bottom:15px;">機能設定・AIチューター</h2>
-      <div class="card">
-        <label>🎙️ マイク設定</label>
-        <select><option>既定のマイク (システム標準)</option></select>
-      </div>
-      <div class="card">
-        <label>🤖 AIチューター設定 (Whisperモデル)</label>
-        <select><option>small (高速)</option><option>medium (標準)</option><option>large-v3 (高精度)</option></select>
-        <label style="display:block; margin-top:10px;">プロンプト・指示設定</label>
-        <textarea rows="3" placeholder="AIへの指示 (例: 会議の議事録として要約してください)"></textarea>
-      </div>
+      <h2 style="margin-bottom:15px;">機能設定</h2>
+      <p style="color:#a6adc8;">※現在、簡易文字起こしエンジンを使用中です。</p>
     </div>
   </main>
   <script>
     let rec = false;
     let mediaRecorder;
     let audioChunks = [];
+    
+    // 文字起こし機能のセットアップ
+    let recognition;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRec();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'ja-JP'; // 日本語に設定
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        document.getElementById('transcriptArea').value = transcript;
+      };
+    }
 
     async function toggleRec() {
       const btn = document.getElementById('recBtn');
       const status = document.getElementById('status');
+      const transcriptArea = document.getElementById('transcriptArea');
 
       if (!rec) {
         try {
-          // マイクへのアクセス要求
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           mediaRecorder = new MediaRecorder(stream);
           audioChunks = [];
           
-          // 録音データが生成されるたびに保存
-          mediaRecorder.ondataavailable = event => {
-            if (event.data.size > 0) audioChunks.push(event.data);
-          };
-          
-          // 録音停止時の処理（ファイルとしてダウンロード）
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
           mediaRecorder.onstop = () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const audioUrl = URL.createObjectURL(audioBlob);
             const a = document.createElement('a');
-            a.href = audioUrl;
+            a.href = URL.createObjectURL(audioBlob);
             a.download = '録音データ_' + Date.now() + '.webm';
-            document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            status.textContent = 'ステータス: 録音完了！ファイルを保存しました。';
+            status.textContent = 'ステータス: 録音完了！音声ファイルを保存しました。';
           };
 
           mediaRecorder.start();
+          if (recognition) {
+            transcriptArea.value = ''; // 前回のテキストをクリア
+            recognition.start();
+          }
+          
           rec = true;
           btn.textContent = '⏹️ 録音停止';
           btn.style.background = '#a6e3a1';
-          status.textContent = 'ステータス: 🎙️ 録音中... (マイクの許可を求められたら「はい」を押してください)';
-        } catch (err) {
-          alert('マイクにアクセスできませんでした。設定を確認してください。エラー: ' + err.message);
-        }
+          status.textContent = 'ステータス: 🎙️ 録音＆文字起こし中...';
+        } catch (err) { alert('マイクエラー: ' + err.message); }
       } else {
-        // 録音を停止する
         mediaRecorder.stop();
+        if (recognition) recognition.stop();
         rec = false;
         btn.textContent = '🔴 録音する';
         btn.style.background = '#f38ba8';
-        status.textContent = 'ステータス: 保存処理中...';
       }
     }
 
