@@ -34,42 +34,82 @@
         <p id="status" style="margin-top:15px; color:#a6adc8;">ステータス: 待機中</p>
       </div>
       <div class="card">
-        <h3>リアルタイム文字起こし結果</h3>
-        <textarea id="transcriptArea" rows="8" readonly placeholder="ここに文字起こしされたデータが表示されます..."></textarea>
+        <h3>AIチューター解析結果 (文字起こし・要約)</h3>
+        <textarea id="transcriptArea" rows="12" readonly placeholder="ここにAIの解析結果が表示されます..."></textarea>
       </div>
     </div>
     <div id="settings" class="section">
-      <h2 style="margin-bottom:15px;">機能設定</h2>
-      <p style="color:#a6adc8;">※現在、簡易文字起こしエンジンを使用中です。</p>
+      <h2 style="margin-bottom:15px;">機能設定・AIチューター</h2>
+      <div class="card">
+        <label>🔑 Gemini APIキー</label>
+        <input type="password" id="geminiApiKey" placeholder="AIzaSy... (取得したキーを入力)" onchange="saveSettings()" />
+      </div>
+      <div class="card">
+        <label>🤖 プロンプト (AIへの指示)</label>
+        <textarea id="aiPrompt" rows="3" onchange="saveSettings()">この音声を文字起こしし、重要なポイントを箇条書きで要約してください。必要に応じてテスト対策用のキーワードも3つ抽出してください。</textarea>
+      </div>
     </div>
   </main>
   <script>
     let rec = false;
     let mediaRecorder;
     let audioChunks = [];
-    
-    // 文字起こし機能のセットアップ
-    let recognition;
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRec();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'ja-JP'; // 日本語に設定
 
-      recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        document.getElementById('transcriptArea').value = transcript;
-      };
+    // 設定の自動保存・読み込み
+    window.onload = () => {
+      const savedKey = localStorage.getItem('geminiApiKey');
+      if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+      const savedPrompt = localStorage.getItem('aiPrompt');
+      if (savedPrompt) document.getElementById('aiPrompt').value = savedPrompt;
+    };
+    function saveSettings() {
+      localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
+      localStorage.setItem('aiPrompt', document.getElementById('aiPrompt').value);
     }
 
+    // 音声データをAIが読める形式(Base64)に変換
+    function blobToBase64(blob) {
+      return new Promise((resolve, _) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Gemini APIへ音声と指示を送信する処理
+    async function processWithGemini(blob) {
+      const apiKey = document.getElementById('geminiApiKey').value;
+      const prompt = document.getElementById('aiPrompt').value;
+      const transcriptArea = document.getElementById('transcriptArea');
+      
+      if (!apiKey) {
+        transcriptArea.value = "⚠️ エラー: 機能設定ページで Gemini APIキー を入力してください。";
+        return;
+      }
+
+      transcriptArea.value = "🤖 AIチューターが音声を解析・要約中です...\n（録音の長さに応じて数秒〜数十秒かかります。そのままお待ちください）";
+      
+      try {
+        const base64Audio = await blobToBase64(blob);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = {
+          contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }]
+        };
+
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error.message);
+        transcriptArea.value = data.candidates[0].content.parts[0].text;
+      } catch (err) {
+        transcriptArea.value = "❌ AI解析エラー: " + err.message;
+      }
+    }
+
+    // 録音の開始と停止
     async function toggleRec() {
       const btn = document.getElementById('recBtn');
       const status = document.getElementById('status');
-      const transcriptArea = document.getElementById('transcriptArea');
 
       if (!rec) {
         try {
@@ -80,30 +120,215 @@
           mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
           mediaRecorder.onstop = () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            // バックアップとして音声ファイルをダウンロード
             const a = document.createElement('a');
             a.href = URL.createObjectURL(audioBlob);
             a.download = '録音データ_' + Date.now() + '.webm';
             a.click();
-            status.textContent = 'ステータス: 録音完了！音声ファイルを保存しました。';
+            
+            status.textContent = 'ステータス: 録音完了！AIに解析を依頼しています...';
+            processWithGemini(audioBlob); // AI解析スタート
           };
 
           mediaRecorder.start();
-          if (recognition) {
-            transcriptArea.value = ''; // 前回のテキストをクリア
-            recognition.start();
-          }
-          
           rec = true;
           btn.textContent = '⏹️ 録音停止';
           btn.style.background = '#a6e3a1';
-          status.textContent = 'ステータス: 🎙️ 録音＆文字起こし中...';
+          status.textContent = 'ステータス: 🎙️ 録音中... (マイクに向かって話してください)';
         } catch (err) { alert('マイクエラー: ' + err.message); }
       } else {
         mediaRecorder.stop();
-        if (recognition) recognition.stop();
         rec = false;
         btn.textContent = '🔴 録音する';
         btn.style.background = '#f38ba8';
+      }
+    }
+
+    function showNav(id, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>
+  <script>
+    let rec = false;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // 設定の自動保存・読み込み
+    window.onload = () => {
+      const savedKey = localStorage.getItem('geminiApiKey');
+      if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+      const savedPrompt = localStorage.getItem('aiPrompt');
+      if (savedPrompt) document.getElementById('aiPrompt').value = savedPrompt;
+    };
+    function saveSettings() {
+      localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
+      localStorage.setItem('aiPrompt', document.getElementById('aiPrompt').value);
+    }
+
+    // 音声データをAIが読める形式(Base64)に変換
+    function blobToBase64(blob) {
+      return new Promise((resolve, _) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Gemini APIへ音声と指示を送信する処理
+    async function processWithGemini(blob) {
+      const apiKey = document.getElementById('geminiApiKey').value;
+      const prompt = document.getElementById('aiPrompt').value;
+      const transcriptArea = document.getElementById('transcriptArea');
+      
+      if (!apiKey) {
+        transcriptArea.value = "⚠️ エラー: 機能設定ページで Gemini APIキー を入力してください。";
+        return;
+      }
+
+      transcriptArea.value = "🤖 AIチューターが音声を解析・要約中です...\n（録音の長さに応じて数秒〜数十秒かかります。そのままお待ちください）";
+      
+      try {
+        const base64Audio = await blobToBase64(blob);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = {
+          contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }]
+        };
+
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error.message);
+        transcriptArea.value = data.candidates[0].content.parts[0].text;
+      } catch (err) {
+        transcriptArea.value = "❌ AI解析エラー: " + err.message;
+      }
+    }
+
+    // 録音の開始と停止
+    async function toggleRec() {
+      const btn = document.getElementById('recBtn');
+      const status = document.getElementById('status');
+
+      if (!rec) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            // バックアップとして音声ファイルをダウンロード
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(audioBlob);
+            a.download = '録音データ_' + Date.now() + '.webm';
+            a.click();
+            
+            status.textContent = 'ステータス: 録音完了！AIに解析を依頼しています...';
+            processWithGemini(audioBlob); // AI解析スタート
+          };
+
+          mediaRecorder.start();
+          rec = true;
+          btn.textContent = '⏹️ 録音停止';
+          btn.style.background = '#a6e3a1';
+          status.textContent = 'ステータス: 🎙️ 録音中... (マイクに向かって話してください)';
+        } catch (err) { alert('マイクエラー: ' + err.message); }
+      } else {
+        mediaRecorder.stop();
+        rec = false;
+        btn.textContent = '🔴 録音する';
+        btn.style.background = '#f38ba8';
+      }
+    }
+
+    function showNav(id, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>
+  <script>
+    let rec = false;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // 設定の自動保存・読み込み
+    window.onload = () => {
+      const savedKey = localStorage.getItem('geminiApiKey');
+      if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
+      const savedPrompt = localStorage.getItem('aiPrompt');
+      if (savedPrompt) document.getElementById('aiPrompt').value = savedPrompt;
+    };
+    function saveSettings() {
+      localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
+      localStorage.setItem('aiPrompt', document.getElementById('aiPrompt').value);
+    }
+
+    // 音声をAI用に変換
+    function blobToBase64(blob) {
+      return new Promise((resolve, _) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // AIに送信して解析
+    async function processWithGemini(blob) {
+      const apiKey = document.getElementById('geminiApiKey').value;
+      const prompt = document.getElementById('aiPrompt').value;
+      const transcriptArea = document.getElementById('transcriptArea');
+      
+      if (!apiKey) { transcriptArea.value = "⚠️ エラー: 設定ページでAPIキーを入力してください。"; return; }
+      transcriptArea.value = "🤖 音声を解析・要約中です... そのままお待ちください。";
+      
+      try {
+        const base64Audio = await blobToBase64(blob);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }] };
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        transcriptArea.value = data.candidates[0].content.parts[0].text;
+      } catch (err) { transcriptArea.value = "❌ エラー: " + err.message; }
+    }
+    // 録音の開始と停止
+    async function toggleRec() {
+      const btn = document.getElementById('recBtn');
+      const status = document.getElementById('status');
+      if (!rec) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(audioBlob);
+            a.download = '録音データ_' + Date.now() + '.webm';
+            a.click();
+            status.textContent = 'ステータス: 録音完了！AIに解析を依頼しています...';
+            processWithGemini(audioBlob);
+          };
+          mediaRecorder.start();
+          rec = true;
+          btn.textContent = '⏹️ 録音停止'; btn.style.background = '#a6e3a1';
+          status.textContent = 'ステータス: 🎙️ 録音中...';
+        } catch (err) { alert('マイクエラー: ' + err.message); }
+      } else {
+        mediaRecorder.stop();
+        rec = false;
+        btn.textContent = '🔴 録音する'; btn.style.background = '#f38ba8';
       }
     }
 
