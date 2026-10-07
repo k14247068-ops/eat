@@ -91,7 +91,7 @@
       
       try {
         const base64Audio = await blobToBase64(blob);
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const payload = {
           contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }]
         };
@@ -194,7 +194,7 @@
       
       try {
         const base64Audio = await blobToBase64(blob);
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const payload = {
           contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }]
         };
@@ -293,7 +293,7 @@
       
       try {
         const base64Audio = await blobToBase64(blob);
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const payload = { contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: blob.type, data: base64Audio } } ] }] };
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
