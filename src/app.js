@@ -19,7 +19,7 @@ export async function initApp() {
   if (engine === 'online') {
     transcriber = null;
     currentLoadedModel = null;
-    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも高速処理可能です）";
+    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（短時間〜長時間の音声を高精度に処理します）";
     status.textContent = "ステータス: 待機中 (オンライン)";
     return;
   }
@@ -105,7 +105,21 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// オンラインAPI (Gemini 2.0 Flash / v1beta エンドポイントを使用)
+// Blob を安全に Base64 化するヘルパー関数
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // "data:audio/webm;base64,XXXX..." から純粋な Base64 文字列のみを抽出
+      const base64String = reader.result.split(',')[1];
+      resolve(base64String);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// オンラインAPI (Gemini 1.5 Flash - 安全な FileReader 変換版)
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -115,22 +129,15 @@ async function processAudioOnline(blob) {
     return;
   }
 
-  tArea.value = "🌐 [1/2] 音声ファイルをクラウドへ送信中...\n";
+  tArea.value = "🌐 [1/2] 音声データを安全にエンコード中...\n";
   
   try {
-    const arrayBuffer = await blob.arrayBuffer();
-    let binary = '';
-    const bytes = new Uint8Array(arrayBuffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64Data = btoa(binary);
+    // FileReaderで確実に Base64 に変換
+    const base64Data = await blobToBase64(blob);
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    // モデル名を gemini-2.0-flash / v1beta に設定してマルチモーダル音声処理を呼び出し
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -138,8 +145,8 @@ async function processAudioOnline(blob) {
           parts: [
             { text: "以下の音声を正確に日本語で文字起こししてください。余計な挨拶は省き、文字起こし結果のテキストのみ出力してください。" },
             {
-              inlineData: {
-                mimeType: blob.type || "audio/mp3",
+              inline_data: {
+                mime_type: blob.type || "audio/webm",
                 data: base64Data
               }
             }
