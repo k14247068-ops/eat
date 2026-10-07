@@ -24,7 +24,6 @@ export async function initApp() {
     return;
   }
 
-  // オフラインモデルのロード（モデル名を選択されたエンジンに合わせる）
   const modelName = `Xenova/whisper-${engine}`;
   
   if (currentLoadedModel === modelName && transcriber) {
@@ -106,7 +105,7 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// オンラインAPI (Gemini) 解析
+// オンラインAPI (Gemini) - モデル名を gemini-1.5-flash に修正
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -130,7 +129,7 @@ async function processAudioOnline(blob) {
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
