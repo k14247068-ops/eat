@@ -33,6 +33,16 @@
     <!-- 文字起こし画面 -->
     <div class="section active" id="secMain">
       <h2 style="margin-bottom:15px;">ハイブリッド文字起こし ＆ 自動整理</h2>
+      
+      <!-- メイン画面用のモード切替スイッチ -->
+      <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; margin-bottom: 15px;">
+        <span style="font-weight: bold; color: #89b4fa; white-space: nowrap; margin-right: 15px;">⚡ 解析モード切替:</span>
+        <select id="mainModeSelect" style="margin: 0; background: #1e1e2e; cursor: pointer;">
+          <option value="offline">オフライン (Whisper-small / 高精度)</option>
+          <option value="online">オンラインAPI (Gemini / 90分も爆速)</option>
+        </select>
+      </div>
+
       <div class="card" style="display: flex; gap: 20px;">
         <div style="flex: 1; border-right: 1px solid #313244; padding-right: 20px;">
           <h3>🎙️ マイク録音</h3>
@@ -58,11 +68,11 @@
     <div class="section" id="secSettings">
       <h2 style="margin-bottom:15px;">アプリ設定</h2>
       <div class="card">
-        <h3>🔧 解析モード切替</h3>
-        <label>モード選択</label>
-        <select id="modeSelect">
-          <option value="offline">オフライン (Whisper-small / 高精度・じっくり)</option>
-          <option value="online">オンラインAPI (Gemini / 90分も一瞬・爆速)</option>
+        <h3>🔧 詳細設定</h3>
+        <label>モード選択（メイン画面と連動）</label>
+        <select id="settingModeSelect">
+          <option value="offline">オフライン (Whisper-small)</option>
+          <option value="online">オンラインAPI (Gemini)</option>
         </select>
 
         <div id="apiKeyContainer" style="margin-top: 15px; display: none;">

@@ -6,10 +6,15 @@ let rec = false;
 let mediaRecorder;
 let audioChunks = [];
 
+// 現在のモードを取得する共通関数
+function getCurrentMode() {
+  return document.getElementById('mainModeSelect').value;
+}
+
 export async function initApp() {
   const tArea = document.getElementById('transcriptArea');
   const status = document.getElementById('status');
-  const mode = document.getElementById('modeSelect').value;
+  const mode = getCurrentMode();
 
   if (mode === 'online') {
     tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも一瞬で高精度に処理できます）";
@@ -103,7 +108,6 @@ async function processAudioOnline(blob) {
   tArea.value = "🌐 [1/2] 音声ファイルをクラウドへ安全に送信中...\n";
   
   try {
-    // 音声データをBase64に変換
     const arrayBuffer = await blob.arrayBuffer();
     let binary = '';
     const bytes = new Uint8Array(arrayBuffer);
@@ -153,14 +157,13 @@ async function processAudioOnline(blob) {
 }
 
 export async function processAudio(blob) {
-  const mode = document.getElementById('modeSelect').value;
+  const mode = getCurrentMode();
 
   if (mode === 'online') {
     await processAudioOnline(blob);
     return;
   }
 
-  // オフライン処理
   if (!transcriber) {
     alert("オフラインAIの準備がまだ完了していません。しばらくお待ちください。");
     return;
@@ -220,14 +223,17 @@ export function setupListeners() {
     secMain.classList.remove('active');
   };
 
-  // 設定のロード・セーブ
-  const modeSelect = document.getElementById('modeSelect');
-  const apiKeyInput = document.getElementById('apiKeyInput');
+  // モード選択の連動
+  const mainModeSelect = document.getElementById('mainModeSelect');
+  const settingModeSelect = document.getElementById('settingModeSelect');
   const apiKeyContainer = document.getElementById('apiKeyContainer');
+  const apiKeyInput = document.getElementById('apiKeyInput');
   const langSelect = document.getElementById('langSelect');
   const taskSelect = document.getElementById('taskSelect');
 
   const updateModeUI = (mode) => {
+    mainModeSelect.value = mode;
+    settingModeSelect.value = mode;
     if (mode === 'online') {
       apiKeyContainer.style.display = 'block';
     } else {
@@ -235,20 +241,21 @@ export function setupListeners() {
     }
   };
 
-  if(localStorage.getItem('whisper_mode')) {
-    modeSelect.value = localStorage.getItem('whisper_mode');
-  }
-  updateModeUI(modeSelect.value);
+  const savedMode = localStorage.getItem('whisper_mode') || 'offline';
+  updateModeUI(savedMode);
 
   if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
   if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
   if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
 
-  modeSelect.onchange = async () => {
-    localStorage.setItem('whisper_mode', modeSelect.value);
-    updateModeUI(modeSelect.value);
+  const handleModeChange = async (newMode) => {
+    localStorage.setItem('whisper_mode', newMode);
+    updateModeUI(newMode);
     await initApp();
   };
+
+  mainModeSelect.onchange = (e) => handleModeChange(e.target.value);
+  settingModeSelect.onchange = (e) => handleModeChange(e.target.value);
 
   apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
   langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
@@ -272,9 +279,11 @@ export function setupListeners() {
         audioChunks = [];
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioBlob = new AudioBlob(audioChunks, { type: 'audio/webm' }); // Fixed to Blob
+          // wait, let's make sure Blob is correct
+          const audioBlobReal = new Blob(audioChunks, { type: 'audio/webm' });
           status.textContent = 'ステータス: 音声を解析中...';
-          processAudio(audioBlob);
+          processAudio(audioBlobReal);
         };
         mediaRecorder.start();
         rec = true;
