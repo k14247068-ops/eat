@@ -26,7 +26,6 @@ export async function initApp() {
           remainingStr = `約 ${remainingSec} 秒`;
         }
 
-        // 経過時間を省いたスッキリした表示（パーセントと残り時間のみ）
         tArea.value = `🤖 AIモデルをダウンロード中...\n` +
                       `📊 進捗: ${percent}% (残り ${remainingStr})\n` +
                       `📁 ファイル: ${progressInfo.file || ''}`;
@@ -61,11 +60,14 @@ export async function processAudio(blob) {
 
     tArea.value += "🤖 [2/3] あなたのPCの処理能力を使って文字起こしを実行中...\n";
     
+    const lang = document.getElementById('langSelect').value;
+    const task = document.getElementById('taskSelect').value;
+
     const result = await transcriber(audioData, {
       chunk_length_s: 30,
       stride_length_s: 5,
-      language: 'japanese',
-      task: 'transcribe',
+      language: lang,
+      task: task,
     });
 
     tArea.value = "✨ [3/3] 解析完了！\n\n" + result.text;
@@ -76,6 +78,50 @@ export async function processAudio(blob) {
 }
 
 export function setupListeners() {
+  // タブ切り替え
+  const tabMain = document.getElementById('tabMain');
+  const tabSettings = document.getElementById('tabSettings');
+  const secMain = document.getElementById('secMain');
+  const secSettings = document.getElementById('secSettings');
+
+  tabMain.onclick = () => {
+    tabMain.classList.add('active');
+    tabSettings.classList.remove('active');
+    secMain.classList.add('active');
+    secSettings.classList.remove('active');
+  };
+
+  tabSettings.onclick = () => {
+    tabSettings.classList.add('active');
+    tabMain.classList.remove('active');
+    secSettings.classList.add('active');
+    secMain.classList.remove('active');
+  };
+
+  // 設定のロード・セーブ
+  const langSelect = document.getElementById('langSelect');
+  const taskSelect = document.getElementById('taskSelect');
+  
+  if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
+  if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
+
+  langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
+  taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
+
+  // テキストファイル保存機能
+  document.getElementById('saveBtn').onclick = () => {
+    const text = document.getElementById('transcriptArea').value;
+    if(!text || text.includes("モデルを読み込んでいます")) return alert("保存するテキストがありません。");
+    
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcript_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   document.getElementById('fileBtn').onclick = () => {
     if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
     const file = document.getElementById('audioFile').files[0];
