@@ -10,7 +10,7 @@ export async function initApp() {
   const tArea = document.getElementById('transcriptArea');
   const status = document.getElementById('status');
   try {
-    tArea.value = "🤖 ローカルAIモデル(Whisper)の準備を開始します...";
+    tArea.value = "🤖 高精度モデル(Whisper-base)の準備を開始します...\n（初回のみ少しダウンロード容量が増えますが精度が向上します）";
     
     let startTime = Date.now();
 
@@ -26,7 +26,7 @@ export async function initApp() {
           remainingStr = `約 ${remainingSec} 秒`;
         }
 
-        tArea.value = `🤖 AIモデルをダウンロード中...\n` +
+        tArea.value = `🤖 高精度モデルをダウンロード中...\n` +
                       `📊 進捗: ${percent}% (残り ${remainingStr})\n` +
                       `📁 ファイル: ${progressInfo.file || ''}`;
         
@@ -36,11 +36,12 @@ export async function initApp() {
       }
     };
 
-    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+    // whisper-tiny から 精度が高い whisper-base に変更
+    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', {
       progress_callback: progressCallback
     });
 
-    tArea.value = "✨ オフラインAIの準備が完了しました！音声を入力してください。";
+    tArea.value = "✨ オフラインAI（高精度版）の準備が完了しました！音声を入力してください。";
     status.textContent = "ステータス: 待機中";
   } catch(e) {
     tArea.value = "❌ モデルの読み込みに失敗しました: " + e.message;
@@ -48,7 +49,6 @@ export async function initApp() {
   }
 }
 
-// ① テキストの内容を分析してカテゴリを自動判定する関数
 function categorizeText(text) {
   const lower = text.toLowerCase();
   if (lower.includes('講義') || lower.includes('授業') || lower.includes('先生') || lower.includes('勉強') || lower.includes('レポート')) {
@@ -61,14 +61,12 @@ function categorizeText(text) {
   return 'その他';
 }
 
-// ② 自動保存とフォルダ分け（カテゴリ名付きファイル出力）を実行する関数
 function autoSaveTranscript(text) {
   const category = categorizeText(text);
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
   
-  // ファイル名にカテゴリをプレフィックスとして付与（仮想的なフォルダ・分類を実現）
   const fileName = `[${category}]_${dateStr}_${timeStr}.txt`;
   
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -80,7 +78,7 @@ function autoSaveTranscript(text) {
   URL.revokeObjectURL(url);
 
   const autoSaveStatus = document.getElementById('autoSaveStatus');
-  autoSaveStatus.textContent = `💾 自動保存完了: 「${category}」フォルダ相当 (${fileName})`;
+  autoSaveStatus.textContent = `💾 自動保存完了: 「${category}」 (${fileName})`;
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
@@ -94,7 +92,7 @@ export async function processAudio(blob) {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     const audioData = audioBuffer.getChannelData(0);
 
-    tArea.value += "🤖 [2/3] あなたのPCの処理能力を使って文字起こしを実行中...\n";
+    tArea.value += "🤖 [2/3] 高精度モデルで文字起こしを実行中...\n";
     
     const lang = document.getElementById('langSelect').value;
     const task = document.getElementById('taskSelect').value;
@@ -110,7 +108,6 @@ export async function processAudio(blob) {
     tArea.value = "✨ [3/3] 解析完了＆自動保存を実行します！\n\n" + finalResultText;
     document.getElementById('status').textContent = 'ステータス: 待機中';
 
-    // 文字起こし完了時に自動保存 ＆ 自動カテゴリ分類を実行
     if (finalResultText.trim().length > 0) {
       autoSaveTranscript(finalResultText);
     }
@@ -121,7 +118,6 @@ export async function processAudio(blob) {
 }
 
 export function setupListeners() {
-  // タブ切り替え
   const tabMain = document.getElementById('tabMain');
   const tabSettings = document.getElementById('tabSettings');
   const secMain = document.getElementById('secMain');
@@ -141,7 +137,6 @@ export function setupListeners() {
     secMain.classList.remove('active');
   };
 
-  // 設定のロード・セーブ
   const langSelect = document.getElementById('langSelect');
   const taskSelect = document.getElementById('taskSelect');
   
