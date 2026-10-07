@@ -18,6 +18,7 @@
     .btn-red { background: #f38ba8; color: #111; }
     .btn-blue { background: #89b4fa; color: #111; }
     select, input, textarea { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; background: #181825; color: #fff; border: 1px solid #45475a; }
+    input[type="file"] { background: transparent; border: none; padding: 5px 0; }
   </style>
 </head>
 <body>
@@ -29,15 +30,28 @@
   <main>
     <div id="main" class="section active">
       <h2 style="margin-bottom:15px;">メイン操作</h2>
-      <div class="card">
-        <button class="btn btn-red" id="recBtn" onclick="toggleRec()">🔴 録音する</button>
-        <p id="status" style="margin-top:15px; color:#a6adc8;">ステータス: 待機中</p>
+      
+      <div class="card" style="display: flex; gap: 20px;">
+        <!-- マイク録音エリア -->
+        <div style="flex: 1; border-right: 1px solid #313244; padding-right: 20px;">
+          <h3 style="margin-bottom: 10px;">🎙️ マイクから録音</h3>
+          <button class="btn btn-red" id="recBtn" onclick="toggleRec()">🔴 録音する</button>
+          <p id="status" style="margin-top:10px; color:#a6adc8; font-size: 0.9em;">ステータス: 待機中</p>
+        </div>
+        <!-- ファイルアップロードエリア -->
+        <div style="flex: 1; padding-left: 10px;">
+          <h3 style="margin-bottom: 10px;">📁 ファイルから文字起こし</h3>
+          <input type="file" id="audioFile" accept="audio/*,video/*" />
+          <button class="btn btn-blue" onclick="transcribeFile()" style="margin-top: 10px;">📤 ファイルを解析</button>
+        </div>
       </div>
+
       <div class="card">
-        <h3>AIチューター解析結果 (文字起こし・要約)</h3>
+        <h3>🤖 AIチューター解析結果 (文字起こし・要約)</h3>
         <textarea id="transcriptArea" rows="12" readonly placeholder="ここにAIの解析結果が表示されます..."></textarea>
       </div>
     </div>
+
     <div id="settings" class="section">
       <h2 style="margin-bottom:15px;">機能設定・AIチューター</h2>
       <div class="card">
@@ -74,6 +88,19 @@
       });
     }
 
+    // 🌟 新機能：選択したファイルをAIに渡す
+    function transcribeFile() {
+      const fileInput = document.getElementById('audioFile');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("音声ファイルを選択してください。");
+        return;
+      }
+      document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
+      processWithGemini(file);
+    }
+
+    // AI通信処理 (モデルを安定版の gemini-2.0-flash に変更)
     async function processWithGemini(blob) {
       const apiKey = document.getElementById('geminiApiKey').value;
       const prompt = document.getElementById('aiPrompt').value;
@@ -86,7 +113,7 @@
       try {
         let mime = blob.type;
         if (!mime || mime === '') { mime = 'audio/webm'; }
-        tArea.value += `🤖 [2/5] 音声データを変換中... (種類: ${mime}, サイズ: ${blob.size} bytes)\n`;
+        tArea.value += `🤖 [2/5] 音声データを変換中... (種類: ${mime}, サイズ: ${Math.round(blob.size/1024)} KB)\n`;
         
         const base64Audio = await blobToBase64(blob);
         
@@ -103,6 +130,7 @@
         
         if (data.candidates && data.candidates.length > 0) {
           tArea.value = "✨ [5/5] 解析完了！\n\n" + data.candidates[0].content.parts[0].text;
+          document.getElementById('status').textContent = 'ステータス: 待機中';
         } else {
           tArea.value += "❌ [5/5] エラー: AIの返事にテキストが含まれていませんでした。\n詳細: " + JSON.stringify(data);
         }
