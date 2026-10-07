@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Whisper AI 文字起こしアプリ</title>
+  <title>Whisper AI (Offline)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { display: flex; height: 100vh; background: #1e1e2e; color: #cdd6f4; }
@@ -17,131 +17,98 @@
     .btn { padding: 10px 18px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; margin-right: 8px; margin-bottom: 8px; }
     .btn-red { background: #f38ba8; color: #111; }
     .btn-blue { background: #89b4fa; color: #111; }
-    select, input, textarea { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; background: #181825; color: #fff; border: 1px solid #45475a; }
-    input[type="file"] { background: transparent; border: none; padding: 5px 0; }
+    input[type="file"] { background: transparent; border: none; padding: 5px 0; margin-top: 10px; }
+    textarea { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; background: #181825; color: #fff; border: 1px solid #45475a; }
   </style>
 </head>
 <body>
   <nav>
     <h3>Whisper App</h3>
-    <button class="active" onclick="showNav('main', this)">🎙️ メイン操作</button>
-    <button onclick="showNav('settings', this)">⚙️ 機能設定</button>
+    <button class="active">🎙️ 完全オフラインAI</button>
   </nav>
   <main>
-    <div id="main" class="section active">
-      <h2 style="margin-bottom:15px;">メイン操作</h2>
-      
+    <div class="section active">
+      <h2 style="margin-bottom:15px;">完全オフライン文字起こし</h2>
       <div class="card" style="display: flex; gap: 20px;">
-        <!-- マイク録音エリア -->
         <div style="flex: 1; border-right: 1px solid #313244; padding-right: 20px;">
-          <h3 style="margin-bottom: 10px;">🎙️ マイクから録音</h3>
-          <button class="btn btn-red" id="recBtn" onclick="toggleRec()">🔴 録音する</button>
-          <p id="status" style="margin-top:10px; color:#a6adc8; font-size: 0.9em;">ステータス: 待機中</p>
+          <h3>🎙️ マイク録音</h3>
+          <button class="btn btn-red" id="recBtn" style="margin-top: 10px;">🔴 録音する</button>
+          <p id="status" style="margin-top:10px; color:#a6adc8; font-size: 0.9em;">ステータス: モデル読込中...</p>
         </div>
-        <!-- ファイルアップロードエリア -->
         <div style="flex: 1; padding-left: 10px;">
-          <h3 style="margin-bottom: 10px;">📁 ファイルから文字起こし</h3>
+          <h3>📁 ファイル解析</h3>
           <input type="file" id="audioFile" accept="audio/*,video/*" />
-          <button class="btn btn-blue" onclick="transcribeFile()" style="margin-top: 10px;">📤 ファイルを解析</button>
+          <button class="btn btn-blue" id="fileBtn" style="margin-top: 10px;">📤 ファイルを解析</button>
         </div>
       </div>
-
       <div class="card">
-        <h3>🤖 AIチューター解析結果 (文字起こし・要約)</h3>
-        <textarea id="transcriptArea" rows="12" readonly placeholder="ここにAIの解析結果が表示されます..."></textarea>
-      </div>
-    </div>
-
-    <div id="settings" class="section">
-      <h2 style="margin-bottom:15px;">機能設定・AIチューター</h2>
-      <div class="card">
-        <label>🔑 Gemini APIキー</label>
-        <input type="password" id="geminiApiKey" placeholder="AIzaSy... (取得したキーを入力)" onchange="saveSettings()" />
-      </div>
-      <div class="card">
-        <label>🤖 プロンプト (AIへの指示)</label>
-        <textarea id="aiPrompt" rows="3" onchange="saveSettings()">この音声を文字起こしし、重要なポイントを箇条書きで要約してください。</textarea>
+        <h3>🤖 ローカルAI 解析結果</h3>
+        <textarea id="transcriptArea" rows="12" readonly placeholder="モデルを読み込んでいます..."></textarea>
       </div>
     </div>
   </main>
-  <script>
+
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.1';
+    env.allowLocalModels = false;
+
+    let transcriber = null;
     let rec = false;
     let mediaRecorder;
     let audioChunks = [];
 
-    window.onload = () => {
-      const savedKey = localStorage.getItem('geminiApiKey');
-      if (savedKey) document.getElementById('geminiApiKey').value = savedKey;
-      const savedPrompt = localStorage.getItem('aiPrompt');
-      if (savedPrompt) document.getElementById('aiPrompt').value = savedPrompt;
-    };
-    function saveSettings() {
-      localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
-      localStorage.setItem('aiPrompt', document.getElementById('aiPrompt').value);
-    }
-
-    function blobToBase64(blob) {
-      return new Promise((resolve, _) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    // 🌟 新機能：選択したファイルをAIに渡す
-    function transcribeFile() {
-      const fileInput = document.getElementById('audioFile');
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("音声ファイルを選択してください。");
-        return;
-      }
-      document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
-      processWithGemini(file);
-    }
-
-    // AI通信処理 (モデルを安定版の gemini-3.8-flash に変更)
-    async function processWithGemini(blob) {
-      const apiKey = document.getElementById('geminiApiKey').value;
-      const prompt = document.getElementById('aiPrompt').value;
+    async function initModel() {
       const tArea = document.getElementById('transcriptArea');
-      
-      if (!apiKey) { tArea.value = "⚠️ エラー: 設定ページでAPIキーを入力してください。"; return; }
-      
-      tArea.value = "🤖 [1/5] 解析準備を開始しました...\n";
+      const status = document.getElementById('status');
+      try {
+        tArea.value = "🤖 ローカルAIモデル(Whisper)をダウンロード中...\n（初回のみ数分かかります。完了後は完全オフラインで動作します）";
+        transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+        tArea.value = "✨ オフラインAIの準備が完了しました！音声を入力してください。";
+        status.textContent = "ステータス: 待機中";
+      } catch(e) {
+        tArea.value = "❌ モデルの読み込みに失敗しました: " + e.message;
+      }
+    }
+
+    async function processAudio(blob) {
+      const tArea = document.getElementById('transcriptArea');
+      tArea.value = "🤖 [1/3] 音声をAI用に変換中...\n";
       
       try {
-        let mime = blob.type;
-        if (!mime || mime === '') { mime = 'audio/webm'; }
-        tArea.value += `🤖 [2/5] 音声データを変換中... (種類: ${mime}, サイズ: ${Math.round(blob.size/1024)} KB)\n`;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const arrayBuffer = await blob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        const audioData = audioBuffer.getChannelData(0);
+
+        tArea.value += "🤖 [2/3] あなたのPCの処理能力を使って文字起こしを実行中...\n";
         
-        const base64Audio = await blobToBase64(blob);
-        
-        tArea.value += "🤖 [3/5] Google AI (gemini-3.8-flash) に送信中...\n";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: mime, data: base64Audio } } ] }] };
-        
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        
-        tArea.value += `🤖 [4/5] データの受信完了 (通信ステータス: ${res.status})。中身を確認中...\n`;
-        const data = await res.json();
-        
-        if (data.error) throw new Error(JSON.stringify(data.error));
-        
-        if (data.candidates && data.candidates.length > 0) {
-          tArea.value = "✨ [5/5] 解析完了！\n\n" + data.candidates[0].content.parts[0].text;
-          document.getElementById('status').textContent = 'ステータス: 待機中';
-        } else {
-          tArea.value += "❌ [5/5] エラー: AIの返事にテキストが含まれていませんでした。\n詳細: " + JSON.stringify(data);
-        }
+        const result = await transcriber(audioData, {
+          chunk_length_s: 30,
+          stride_length_s: 5,
+          language: 'japanese',
+          task: 'transcribe',
+        });
+
+        tArea.value = "✨ [3/3] 解析完了！\n\n" + result.text;
+        document.getElementById('status').textContent = 'ステータス: 待機中';
       } catch (err) {
-        tArea.value += `\n❌ 途中でエラーが発生しました: ${err.message}`;
+        tArea.value += `\n❌ エラーが発生しました: ${err.message}`;
       }
     }
 
-    async function toggleRec() {
+    document.getElementById('fileBtn').onclick = () => {
+      if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
+      const file = document.getElementById('audioFile').files[0];
+      if (!file) return alert("音声ファイルを選択してください。");
+      document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
+      processAudio(file);
+    };
+
+    document.getElementById('recBtn').onclick = async () => {
+      if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
       const btn = document.getElementById('recBtn');
       const status = document.getElementById('status');
+      
       if (!rec) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -150,12 +117,8 @@
           mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
           mediaRecorder.onstop = () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(audioBlob);
-            a.download = '録音データ_' + Date.now() + '.webm';
-            a.click();
-            status.textContent = 'ステータス: 録音完了！AIに解析を依頼しています...';
-            processWithGemini(audioBlob);
+            status.textContent = 'ステータス: ローカルAIで解析中...';
+            processAudio(audioBlob);
           };
           mediaRecorder.start();
           rec = true;
@@ -167,14 +130,9 @@
         rec = false;
         btn.textContent = '🔴 録音する'; btn.style.background = '#f38ba8';
       }
-    }
+    };
 
-    function showNav(id, btn) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      btn.classList.add('active');
-    }
+    window.onload = initModel;
   </script>
 </body>
 </html>
