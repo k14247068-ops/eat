@@ -19,7 +19,7 @@ export async function initApp() {
   if (engine === 'online') {
     transcriber = null;
     currentLoadedModel = null;
-    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも一瞬で処理できます）";
+    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも高速処理可能です）";
     status.textContent = "ステータス: 待機中 (オンライン)";
     return;
   }
@@ -105,7 +105,7 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// オンラインAPI (Gemini) - v1安定版 ＆ gemini-1.5-flash
+// オンラインAPI (Gemini 2.0 Flash / v1beta エンドポイントを使用)
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -115,7 +115,7 @@ async function processAudioOnline(blob) {
     return;
   }
 
-  tArea.value = "🌐 [1/2] 音声ファイルをクラウドへ安全に送信中...\n";
+  tArea.value = "🌐 [1/2] 音声ファイルをクラウドへ送信中...\n";
   
   try {
     const arrayBuffer = await blob.arrayBuffer();
@@ -129,7 +129,8 @@ async function processAudioOnline(blob) {
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // モデル名を gemini-2.0-flash / v1beta に設定してマルチモーダル音声処理を呼び出し
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -137,8 +138,8 @@ async function processAudioOnline(blob) {
           parts: [
             { text: "以下の音声を正確に日本語で文字起こししてください。余計な挨拶は省き、文字起こし結果のテキストのみ出力してください。" },
             {
-              inline_data: {
-                mime_type: blob.type || "audio/webm",
+              inlineData: {
+                mimeType: blob.type || "audio/mp3",
                 data: base64Data
               }
             }
@@ -149,7 +150,7 @@ async function processAudioOnline(blob) {
 
     const data = await response.json();
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(`${data.error.code}: ${data.error.message}`);
     }
 
     const finalResultText = data.candidates[0].content.parts[0].text;
@@ -250,7 +251,7 @@ export function setupListeners() {
     }
   };
 
-  const savedEngine = localStorage.getItem('whisper_engine') || 'small';
+  const savedEngine = localStorage.getItem('whisper_engine') || 'base';
   updateEngineUI(savedEngine);
 
   if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
