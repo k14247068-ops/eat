@@ -32,7 +32,7 @@
   <main>
     <!-- 文字起こし画面 -->
     <div class="section active" id="secMain">
-      <h2 style="margin-bottom:15px;">完全オフライン文字起こし</h2>
+      <h2 style="margin-bottom:15px;">完全オフライン文字起こし ＆ 自動整理</h2>
       <div class="card" style="display: flex; gap: 20px;">
         <div style="flex: 1; border-right: 1px solid #313244; padding-right: 20px;">
           <h3>🎙️ マイク録音</h3>
@@ -47,8 +47,8 @@
       </div>
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3>🤖 ローカルAI 解析結果</h3>
-          <button class="btn btn-green" id="saveBtn" style="margin:0; padding: 6px 12px; font-size: 0.85em;">💾 テキスト保存</button>
+          <h3>🤖 ローカルAI 解析結果 ＆ 自動保存</h3>
+          <span id="autoSaveStatus" style="font-size: 0.85em; color: #a6e3a1;"></span>
         </div>
         <textarea id="transcriptArea" rows="12" readonly placeholder="モデルを読み込んでいます..."></textarea>
       </div>
@@ -70,10 +70,6 @@
           <option value="transcribe">文字起こし (Transcribe)</option>
           <option value="translate">英語へ翻訳 (Translate to English)</option>
         </select>
-        
-        <p style="margin-top: 15px; font-size: 0.85em; color: #a6adc8;">
-          ※ 設定を変更すると自動で保存されます。
-        </p>
       </div>
     </div>
   </main>

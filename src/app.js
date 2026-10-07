@@ -48,6 +48,42 @@ export async function initApp() {
   }
 }
 
+// ① テキストの内容を分析してカテゴリを自動判定する関数
+function categorizeText(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('講義') || lower.includes('授業') || lower.includes('先生') || lower.includes('勉強') || lower.includes('レポート')) {
+    return '講義';
+  } else if (lower.includes('会議') || lower.includes('ミーティング') || lower.includes('決定') || lower.includes('相談') || lower.includes('案件')) {
+    return '会議';
+  } else if (lower.includes('アイデア') || lower.includes('思いつき') || lower.includes('企画') || lower.includes('メモ')) {
+    return 'アイデア';
+  }
+  return 'その他';
+}
+
+// ② 自動保存とフォルダ分け（カテゴリ名付きファイル出力）を実行する関数
+function autoSaveTranscript(text) {
+  const category = categorizeText(text);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  
+  // ファイル名にカテゴリをプレフィックスとして付与（仮想的なフォルダ・分類を実現）
+  const fileName = `[${category}]_${dateStr}_${timeStr}.txt`;
+  
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  const autoSaveStatus = document.getElementById('autoSaveStatus');
+  autoSaveStatus.textContent = `💾 自動保存完了: 「${category}」フォルダ相当 (${fileName})`;
+  setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
+}
+
 export async function processAudio(blob) {
   const tArea = document.getElementById('transcriptArea');
   tArea.value = "🤖 [1/3] 音声をAI用に変換中...\n";
@@ -70,8 +106,15 @@ export async function processAudio(blob) {
       task: task,
     });
 
-    tArea.value = "✨ [3/3] 解析完了！\n\n" + result.text;
+    const finalResultText = result.text;
+    tArea.value = "✨ [3/3] 解析完了＆自動保存を実行します！\n\n" + finalResultText;
     document.getElementById('status').textContent = 'ステータス: 待機中';
+
+    // 文字起こし完了時に自動保存 ＆ 自動カテゴリ分類を実行
+    if (finalResultText.trim().length > 0) {
+      autoSaveTranscript(finalResultText);
+    }
+
   } catch (err) {
     tArea.value += `\n❌ エラーが発生しました: ${err.message}`;
   }
@@ -107,20 +150,6 @@ export function setupListeners() {
 
   langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
   taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
-
-  // テキストファイル保存機能
-  document.getElementById('saveBtn').onclick = () => {
-    const text = document.getElementById('transcriptArea').value;
-    if(!text || text.includes("モデルを読み込んでいます")) return alert("保存するテキストがありません。");
-    
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcript_${new Date().toISOString().slice(0,10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   document.getElementById('fileBtn').onclick = () => {
     if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
