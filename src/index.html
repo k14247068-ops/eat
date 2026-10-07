@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Whisper App (Hybrid)</title>
+  <title>Whisper App (Multi-Engine)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { display: flex; height: 100vh; background: #1e1e2e; color: #cdd6f4; }
@@ -32,14 +32,16 @@
   <main>
     <!-- 文字起こし画面 -->
     <div class="section active" id="secMain">
-      <h2 style="margin-bottom:15px;">ハイブリッド文字起こし ＆ 自動整理</h2>
+      <h2 style="margin-bottom:15px;">マルチエンジン文字起こし ＆ 自動整理</h2>
       
-      <!-- メイン画面用のモード切替スイッチ -->
+      <!-- メイン画面用のモード・モデル切替スイッチ -->
       <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; margin-bottom: 15px;">
-        <span style="font-weight: bold; color: #89b4fa; white-space: nowrap; margin-right: 15px;">⚡ 解析モード切替:</span>
-        <select id="mainModeSelect" style="margin: 0; background: #1e1e2e; cursor: pointer;">
-          <option value="offline">オフライン (Whisper-small / 高精度)</option>
-          <option value="online">オンラインAPI (Gemini / 90分も爆速)</option>
+        <span style="font-weight: bold; color: #89b4fa; white-space: nowrap; margin-right: 15px;">⚡ エンジン切替:</span>
+        <select id="mainEngineSelect" style="margin: 0; background: #1e1e2e; cursor: pointer;">
+          <option value="tiny">オフライン (軽量: tiny)</option>
+          <option value="base">オフライン (バランス: base)</option>
+          <option value="small">オフライン (精度高め: small)</option>
+          <option value="online">オンラインAPI (Gemini 1.5 Flash)</option>
         </select>
       </div>
 
@@ -69,10 +71,12 @@
       <h2 style="margin-bottom:15px;">アプリ設定</h2>
       <div class="card">
         <h3>🔧 詳細設定</h3>
-        <label>モード選択（メイン画面と連動）</label>
-        <select id="settingModeSelect">
-          <option value="offline">オフライン (Whisper-small)</option>
-          <option value="online">オンラインAPI (Gemini)</option>
+        <label>エンジン選択（メイン画面と連動）</label>
+        <select id="settingEngineSelect">
+          <option value="tiny">オフライン (軽量: tiny)</option>
+          <option value="base">オフライン (バランス: base)</option>
+          <option value="small">オフライン (精度高め: small)</option>
+          <option value="online">オンラインAPI (Gemini 1.5 Flash)</option>
         </select>
 
         <div id="apiKeyContainer" style="margin-top: 15px; display: none;">

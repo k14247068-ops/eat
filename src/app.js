@@ -2,27 +2,39 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers
 env.allowLocalModels = false;
 
 let transcriber = null;
+let currentLoadedModel = null;
 let rec = false;
 let mediaRecorder;
 let audioChunks = [];
 
-function getCurrentMode() {
-  return document.getElementById('mainModeSelect').value;
+function getCurrentEngine() {
+  return document.getElementById('mainEngineSelect').value;
 }
 
 export async function initApp() {
   const tArea = document.getElementById('transcriptArea');
   const status = document.getElementById('status');
-  const mode = getCurrentMode();
+  const engine = getCurrentEngine();
 
-  if (mode === 'online') {
-    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも一瞬で高精度に処理できます）";
+  if (engine === 'online') {
+    transcriber = null;
+    currentLoadedModel = null;
+    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも一瞬で処理できます）";
     status.textContent = "ステータス: 待機中 (オンライン)";
     return;
   }
 
+  // オフラインモデルのロード（モデル名を選択されたエンジンに合わせる）
+  const modelName = `Xenova/whisper-${engine}`;
+  
+  if (currentLoadedModel === modelName && transcriber) {
+    tArea.value = `✨ オフラインAI (${engine}) の準備は既に完了しています！`;
+    status.textContent = `ステータス: 待機中 (${engine})`;
+    return;
+  }
+
   try {
-    tArea.value = "🤖 最高精度モデル(Whisper-small)の準備を開始します...\n（オフライン初回のみ数分かかります）";
+    tArea.value = `🤖 オフラインモデル (${engine}) の準備を開始します...\n（初回のみダウンロードに時間がかかります）`;
     
     let startTime = Date.now();
 
@@ -38,22 +50,23 @@ export async function initApp() {
           remainingStr = `約 ${remainingSec} 秒`;
         }
 
-        tArea.value = `🤖 オフラインモデルをダウンロード中...\n` +
+        tArea.value = `🤖 モデル (${engine}) をダウンロード中...\n` +
                       `📊 進捗: ${percent}% (残り ${remainingStr})\n` +
                       `📁 ファイル: ${progressInfo.file || ''}`;
         
         status.textContent = `ステータス: ダウンロード中 (${percent}%)`;
       } else if (progressInfo.status === 'loaded') {
-        tArea.value = `✨ オフラインモデルのロードが完了しました！`;
+        tArea.value = `✨ モデルのロードが完了しました！`;
       }
     };
 
-    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
+    transcriber = await pipeline('automatic-speech-recognition', modelName, {
       progress_callback: progressCallback
     });
 
-    tArea.value = "✨ オフラインAI（最高精度版）の準備が完了しました！音声を入力してください。";
-    status.textContent = "ステータス: 待機中 (オフライン)";
+    currentLoadedModel = modelName;
+    tArea.value = `✨ オフラインAI (${engine}) の準備が完了しました！音声を入力してください。`;
+    status.textContent = `ステータス: 待機中 (${engine})`;
   } catch(e) {
     tArea.value = "❌ モデルの読み込みに失敗しました: " + e.message;
     status.textContent = "ステータス: エラー";
@@ -93,7 +106,7 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// オンラインAPI (Gemini) - モデル名を gemini-1.5-flash-latest に修正
+// オンラインAPI (Gemini) 解析
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -155,9 +168,9 @@ async function processAudioOnline(blob) {
 }
 
 export async function processAudio(blob) {
-  const mode = getCurrentMode();
+  const engine = getCurrentEngine();
 
-  if (mode === 'online') {
+  if (engine === 'online') {
     await processAudioOnline(blob);
     return;
   }
@@ -168,7 +181,7 @@ export async function processAudio(blob) {
   }
 
   const tArea = document.getElementById('transcriptArea');
-  tArea.value = "🤖 [1/3] 音声をAI用に変換中...\n";
+  tArea.value = `🤖 [1/3] 音声をAI (${engine}) 用に変換中...\n`;
   
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
@@ -176,7 +189,7 @@ export async function processAudio(blob) {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     const audioData = audioBuffer.getChannelData(0);
 
-    tArea.value += "🤖 [2/3] オフラインモデルで解析中...（時間がかかります）\n";
+    tArea.value += `🤖 [2/3] オフラインモデル (${engine}) で解析中...\n`;
     
     const lang = document.getElementById('langSelect').value;
     const task = document.getElementById('taskSelect').value;
@@ -190,7 +203,7 @@ export async function processAudio(blob) {
 
     const finalResultText = result.text;
     tArea.value = "✨ [3/3] 解析完了＆自動保存を実行します！\n\n" + finalResultText;
-    document.getElementById('status').textContent = 'ステータス: 待機中 (オフライン)';
+    document.getElementById('status').textContent = `ステータス: 待機中 (${engine})`;
 
     if (finalResultText.trim().length > 0) {
       autoSaveTranscript(finalResultText);
@@ -221,38 +234,38 @@ export function setupListeners() {
     secMain.classList.remove('active');
   };
 
-  const mainModeSelect = document.getElementById('mainModeSelect');
-  const settingModeSelect = document.getElementById('settingModeSelect');
+  const mainEngineSelect = document.getElementById('mainEngineSelect');
+  const settingEngineSelect = document.getElementById('settingEngineSelect');
   const apiKeyContainer = document.getElementById('apiKeyContainer');
   const apiKeyInput = document.getElementById('apiKeyInput');
   const langSelect = document.getElementById('langSelect');
   const taskSelect = document.getElementById('taskSelect');
 
-  const updateModeUI = (mode) => {
-    mainModeSelect.value = mode;
-    settingModeSelect.value = mode;
-    if (mode === 'online') {
+  const updateEngineUI = (engine) => {
+    mainEngineSelect.value = engine;
+    settingEngineSelect.value = engine;
+    if (engine === 'online') {
       apiKeyContainer.style.display = 'block';
     } else {
       apiKeyContainer.style.display = 'none';
     }
   };
 
-  const savedMode = localStorage.getItem('whisper_mode') || 'offline';
-  updateModeUI(savedMode);
+  const savedEngine = localStorage.getItem('whisper_engine') || 'small';
+  updateEngineUI(savedEngine);
 
   if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
   if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
   if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
 
-  const handleModeChange = async (newMode) => {
-    localStorage.setItem('whisper_mode', newMode);
-    updateModeUI(newMode);
+  const handleEngineChange = async (newEngine) => {
+    localStorage.setItem('whisper_engine', newEngine);
+    updateEngineUI(newEngine);
     await initApp();
   };
 
-  mainModeSelect.onchange = (e) => handleModeChange(e.target.value);
-  settingModeSelect.onchange = (e) => handleModeChange(e.target.value);
+  mainEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
+  settingEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
 
   apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
   langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
