@@ -117,7 +117,7 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI (Gemini 2.5 Flash)
+// オンラインAPI (Gemini 3.8 Flash)
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -134,7 +134,7 @@ async function processAudioOnline(blob) {
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -235,7 +235,7 @@ export function setupListeners() {
     tabSettings.classList.add('active');
     tabMain.classList.remove('active');
     secSettings.classList.add('active');
-    secSettings.classList.remove('active');
+    secMain.classList.remove('active');
   };
 
   const mainEngineSelect = document.getElementById('mainEngineSelect');
