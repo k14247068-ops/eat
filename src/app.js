@@ -105,12 +105,10 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// Blob を安全に Base64 化するヘルパー関数
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      // "data:audio/webm;base64,XXXX..." から純粋な Base64 文字列のみを抽出
       const base64String = reader.result.split(',')[1];
       resolve(base64String);
     };
@@ -119,7 +117,7 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI (Gemini 1.5 Flash - 安全な FileReader 変換版)
+// オンラインAPI (Gemini 2.5 Flash)
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -132,12 +130,11 @@ async function processAudioOnline(blob) {
   tArea.value = "🌐 [1/2] 音声データを安全にエンコード中...\n";
   
   try {
-    // FileReaderで確実に Base64 に変換
     const base64Data = await blobToBase64(blob);
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -238,7 +235,7 @@ export function setupListeners() {
     tabSettings.classList.add('active');
     tabMain.classList.remove('active');
     secSettings.classList.add('active');
-    secMain.classList.remove('active');
+    secSettings.classList.remove('active');
   };
 
   const mainEngineSelect = document.getElementById('mainEngineSelect');
