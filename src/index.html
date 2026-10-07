@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Whisper App (Offline)</title>
+  <title>Whisper App (Hybrid)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { display: flex; height: 100vh; background: #1e1e2e; color: #cdd6f4; }
@@ -18,7 +18,7 @@
     .btn-red { background: #f38ba8; color: #111; }
     .btn-blue { background: #89b4fa; color: #111; }
     .btn-green { background: #a6e3a1; color: #111; }
-    input[type="file"] { background: transparent; border: none; padding: 5px 0; margin-top: 10px; }
+    input[type="file"], input[type="password"] { background: #181825; border: 1px solid #45475a; color: #fff; padding: 8px; border-radius: 6px; margin-top: 8px; width: 100%; }
     textarea, select { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; background: #181825; color: #fff; border: 1px solid #45475a; }
     label { font-size: 0.9em; color: #a6adc8; display: block; margin-top: 10px; }
   </style>
@@ -32,12 +32,12 @@
   <main>
     <!-- 文字起こし画面 -->
     <div class="section active" id="secMain">
-      <h2 style="margin-bottom:15px;">完全オフライン文字起こし ＆ 自動整理</h2>
+      <h2 style="margin-bottom:15px;">ハイブリッド文字起こし ＆ 自動整理</h2>
       <div class="card" style="display: flex; gap: 20px;">
         <div style="flex: 1; border-right: 1px solid #313244; padding-right: 20px;">
           <h3>🎙️ マイク録音</h3>
           <button class="btn btn-red" id="recBtn" style="margin-top: 10px;">🔴 録音する</button>
-          <p id="status" style="margin-top:10px; color:#a6adc8; font-size: 0.9em;">ステータス: モデル読込中...</p>
+          <p id="status" style="margin-top:10px; color:#a6adc8; font-size: 0.9em;">ステータス: 準備中...</p>
         </div>
         <div style="flex: 1; padding-left: 10px;">
           <h3>📁 ファイル解析</h3>
@@ -47,10 +47,10 @@
       </div>
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3>🤖 ローカルAI 解析結果 ＆ 自動保存</h3>
+          <h3>🤖 解析結果 ＆ 自動保存</h3>
           <span id="autoSaveStatus" style="font-size: 0.85em; color: #a6e3a1;"></span>
         </div>
-        <textarea id="transcriptArea" rows="12" readonly placeholder="モデルを読み込んでいます..."></textarea>
+        <textarea id="transcriptArea" rows="12" readonly placeholder="準備中..."></textarea>
       </div>
     </div>
 
@@ -58,14 +58,26 @@
     <div class="section" id="secSettings">
       <h2 style="margin-bottom:15px;">アプリ設定</h2>
       <div class="card">
-        <h3>🔧 AI 動作設定</h3>
-        <label>認識言語</label>
+        <h3>🔧 解析モード切替</h3>
+        <label>モード選択</label>
+        <select id="modeSelect">
+          <option value="offline">オフライン (Whisper-small / 高精度・じっくり)</option>
+          <option value="online">オンラインAPI (Gemini / 90分も一瞬・爆速)</option>
+        </select>
+
+        <div id="apiKeyContainer" style="margin-top: 15px; display: none;">
+          <label>Gemini API キー</label>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy..." />
+          <p style="font-size: 0.8em; color: #a6adc8; margin-top: 5px;">※オンラインモードで必要なAPIキーです。</p>
+        </div>
+
+        <label style="margin-top: 15px;">認識言語（オフライン時）</label>
         <select id="langSelect">
           <option value="japanese">日本語 (Japanese)</option>
           <option value="english">英語 (English)</option>
         </select>
 
-        <label style="margin-top: 15px;">タスク</label>
+        <label style="margin-top: 15px;">タスク（オフライン時）</label>
         <select id="taskSelect">
           <option value="transcribe">文字起こし (Transcribe)</option>
           <option value="translate">英語へ翻訳 (Translate to English)</option>

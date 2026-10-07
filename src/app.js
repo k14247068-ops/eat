@@ -9,8 +9,17 @@ let audioChunks = [];
 export async function initApp() {
   const tArea = document.getElementById('transcriptArea');
   const status = document.getElementById('status');
+  const mode = document.getElementById('modeSelect').value;
+
+  if (mode === 'online') {
+    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（90分などの長尺データも一瞬で高精度に処理できます）";
+    status.textContent = "ステータス: 待機中 (オンライン)";
+    return;
+  }
+
+  // オフラインモードの場合のみモデルをロード
   try {
-    tArea.value = "🤖 高精度モデル(Whisper-base)の準備を開始します...\n（初回のみ少しダウンロード容量が増えますが精度が向上します）";
+    tArea.value = "🤖 最高精度モデル(Whisper-small)の準備を開始します...\n（オフライン初回のみ数分かかります）";
     
     let startTime = Date.now();
 
@@ -26,23 +35,22 @@ export async function initApp() {
           remainingStr = `約 ${remainingSec} 秒`;
         }
 
-        tArea.value = `🤖 高精度モデルをダウンロード中...\n` +
+        tArea.value = `🤖 オフラインモデルをダウンロード中...\n` +
                       `📊 進捗: ${percent}% (残り ${remainingStr})\n` +
                       `📁 ファイル: ${progressInfo.file || ''}`;
         
         status.textContent = `ステータス: ダウンロード中 (${percent}%)`;
       } else if (progressInfo.status === 'loaded') {
-        tArea.value = `✨ モデルのロードが完了しました！`;
+        tArea.value = `✨ オフラインモデルのロードが完了しました！`;
       }
     };
 
-    // whisper-tiny から 精度が高い whisper-base に変更
-    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', {
+    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
       progress_callback: progressCallback
     });
 
-    tArea.value = "✨ オフラインAI（高精度版）の準備が完了しました！音声を入力してください。";
-    status.textContent = "ステータス: 待機中";
+    tArea.value = "✨ オフラインAI（最高精度版）の準備が完了しました！音声を入力してください。";
+    status.textContent = "ステータス: 待機中 (オフライン)";
   } catch(e) {
     tArea.value = "❌ モデルの読み込みに失敗しました: " + e.message;
     status.textContent = "ステータス: エラー";
@@ -82,7 +90,82 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
+// オンラインAPI (Gemini) を使った爆速解析関数
+async function processAudioOnline(blob) {
+  const tArea = document.getElementById('transcriptArea');
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  
+  if (!apiKey) {
+    alert("オンラインモードを使用するには、設定画面で Gemini API キーを入力してください。");
+    return;
+  }
+
+  tArea.value = "🌐 [1/2] 音声ファイルをクラウドへ安全に送信中...\n";
+  
+  try {
+    // 音声データをBase64に変換
+    const arrayBuffer = await blob.arrayBuffer();
+    let binary = '';
+    const bytes = new Uint8Array(arrayBuffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Data = btoa(binary);
+
+    tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "以下の音声を正確に日本語で文字起こししてください。余計な挨拶は省き、文字起こし結果のテキストのみ出力してください。" },
+            {
+              inline_data: {
+                mime_type: blob.type || "audio/webm",
+                data: base64Data
+              }
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+    const finalResultText = data.candidates[0].content.parts[0].text;
+    tArea.value = "✨ [完了] オンライン解析＆自動保存を実行しました！\n\n" + finalResultText;
+    document.getElementById('status').textContent = 'ステータス: 待機中 (オンライン)';
+
+    if (finalResultText.trim().length > 0) {
+      autoSaveTranscript(finalResultText);
+    }
+
+  } catch (err) {
+    tArea.value += `\n❌ オンライン解析エラー: ${err.message}`;
+    document.getElementById('status').textContent = 'ステータス: エラー';
+  }
+}
+
 export async function processAudio(blob) {
+  const mode = document.getElementById('modeSelect').value;
+
+  if (mode === 'online') {
+    await processAudioOnline(blob);
+    return;
+  }
+
+  // オフライン処理
+  if (!transcriber) {
+    alert("オフラインAIの準備がまだ完了していません。しばらくお待ちください。");
+    return;
+  }
+
   const tArea = document.getElementById('transcriptArea');
   tArea.value = "🤖 [1/3] 音声をAI用に変換中...\n";
   
@@ -92,7 +175,7 @@ export async function processAudio(blob) {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     const audioData = audioBuffer.getChannelData(0);
 
-    tArea.value += "🤖 [2/3] 高精度モデルで文字起こしを実行中...\n";
+    tArea.value += "🤖 [2/3] オフラインモデルで解析中...（時間がかかります）\n";
     
     const lang = document.getElementById('langSelect').value;
     const task = document.getElementById('taskSelect').value;
@@ -106,14 +189,14 @@ export async function processAudio(blob) {
 
     const finalResultText = result.text;
     tArea.value = "✨ [3/3] 解析完了＆自動保存を実行します！\n\n" + finalResultText;
-    document.getElementById('status').textContent = 'ステータス: 待機中';
+    document.getElementById('status').textContent = 'ステータス: 待機中 (オフライン)';
 
     if (finalResultText.trim().length > 0) {
       autoSaveTranscript(finalResultText);
     }
 
   } catch (err) {
-    tArea.value += `\n❌ エラーが発生しました: ${err.message}`;
+    tArea.value += `\n❌ オフラインエラー: ${err.message}`;
   }
 }
 
@@ -137,17 +220,41 @@ export function setupListeners() {
     secMain.classList.remove('active');
   };
 
+  // 設定のロード・セーブ
+  const modeSelect = document.getElementById('modeSelect');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const apiKeyContainer = document.getElementById('apiKeyContainer');
   const langSelect = document.getElementById('langSelect');
   const taskSelect = document.getElementById('taskSelect');
-  
+
+  const updateModeUI = (mode) => {
+    if (mode === 'online') {
+      apiKeyContainer.style.display = 'block';
+    } else {
+      apiKeyContainer.style.display = 'none';
+    }
+  };
+
+  if(localStorage.getItem('whisper_mode')) {
+    modeSelect.value = localStorage.getItem('whisper_mode');
+  }
+  updateModeUI(modeSelect.value);
+
+  if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
   if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
   if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
 
+  modeSelect.onchange = async () => {
+    localStorage.setItem('whisper_mode', modeSelect.value);
+    updateModeUI(modeSelect.value);
+    await initApp();
+  };
+
+  apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
   langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
   taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
 
   document.getElementById('fileBtn').onclick = () => {
-    if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
     const file = document.getElementById('audioFile').files[0];
     if (!file) return alert("音声ファイルを選択してください。");
     document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
@@ -155,7 +262,6 @@ export function setupListeners() {
   };
 
   document.getElementById('recBtn').onclick = async () => {
-    if(!transcriber) return alert("AIの準備が終わるまでお待ちください");
     const btn = document.getElementById('recBtn');
     const status = document.getElementById('status');
     
@@ -167,7 +273,7 @@ export function setupListeners() {
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          status.textContent = 'ステータス: ローカルAIで解析中...';
+          status.textContent = 'ステータス: 音声を解析中...';
           processAudio(audioBlob);
         };
         mediaRecorder.start();
