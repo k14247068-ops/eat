@@ -6,7 +6,6 @@ let rec = false;
 let mediaRecorder;
 let audioChunks = [];
 
-// 現在のモードを取得する共通関数
 function getCurrentMode() {
   return document.getElementById('mainModeSelect').value;
 }
@@ -22,7 +21,6 @@ export async function initApp() {
     return;
   }
 
-  // オフラインモードの場合のみモデルをロード
   try {
     tArea.value = "🤖 最高精度モデル(Whisper-small)の準備を開始します...\n（オフライン初回のみ数分かかります）";
     
@@ -95,7 +93,7 @@ function autoSaveTranscript(text) {
   setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
 }
 
-// オンラインAPI (Gemini) を使った爆速解析関数
+// オンラインAPI (Gemini) - モデル名を gemini-1.5-flash-latest に修正
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -119,7 +117,7 @@ async function processAudioOnline(blob) {
 
     tArea.value += "🌐 [2/2] Gemini APIで超高速解析を実行中...\n";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -223,7 +221,6 @@ export function setupListeners() {
     secMain.classList.remove('active');
   };
 
-  // モード選択の連動
   const mainModeSelect = document.getElementById('mainModeSelect');
   const settingModeSelect = document.getElementById('settingModeSelect');
   const apiKeyContainer = document.getElementById('apiKeyContainer');
@@ -279,11 +276,9 @@ export function setupListeners() {
         audioChunks = [];
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
-          const audioBlob = new AudioBlob(audioChunks, { type: 'audio/webm' }); // Fixed to Blob
-          // wait, let's make sure Blob is correct
-          const audioBlobReal = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           status.textContent = 'ステータス: 音声を解析中...';
-          processAudio(audioBlobReal);
+          processAudio(audioBlob);
         };
         mediaRecorder.start();
         rec = true;
