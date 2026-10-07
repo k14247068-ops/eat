@@ -100,7 +100,7 @@
       processWithGemini(file);
     }
 
-    // AI通信処理 (モデルを安定版の gemini-2.0-flash に変更)
+    // AI通信処理 (モデルを安定版の gemini-3.8-flash に変更)
     async function processWithGemini(blob) {
       const apiKey = document.getElementById('geminiApiKey').value;
       const prompt = document.getElementById('aiPrompt').value;
@@ -117,8 +117,8 @@
         
         const base64Audio = await blobToBase64(blob);
         
-        tArea.value += "🤖 [3/5] Google AI (gemini-2.0-flash) に送信中...\n";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        tArea.value += "🤖 [3/5] Google AI (gemini-3.8-flash) に送信中...\n";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
         const payload = { contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: mime, data: base64Audio } } ] }] };
         
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
