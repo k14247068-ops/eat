@@ -84,6 +84,16 @@ function categorizeText(text) {
   return 'その他';
 }
 
+// ループ出力（連続重複単語・フレーズ）のクレンジング処理
+function deduplicateText(text) {
+  if (!text) return "";
+  // 3文字以上の連続繰り返し（例：「あるのか？あるのか？」「でもでもでも」など）を1回に圧縮
+  let cleaned = text.replace(/(.{3,})\1+/g, '$1');
+  // 1〜2文字の極端な連続繰り返し（例：「あああああ」）を抑止
+  cleaned = cleaned.replace(/(.)\1{4,}/g, '$1');
+  return cleaned;
+}
+
 function autoSaveTranscript(text) {
   const category = categorizeText(text);
   const now = new Date();
@@ -140,7 +150,7 @@ async function processAudioOnline(blob) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "以下の音声を正確に日本語で文字起こししてください。余計な挨拶は省き、文字起こし結果のテキストのみ出力してください。" },
+            { text: "以下の音声を正確に日本語で文字起こししてください。余計な挨拶は省き、重複やループがある場合は整形してテキストのみ出力してください。" },
             {
               inline_data: {
                 mime_type: blob.type || "audio/webm",
@@ -157,7 +167,9 @@ async function processAudioOnline(blob) {
       throw new Error(`${data.error.code}: ${data.error.message}`);
     }
 
-    const finalResultText = data.candidates[0].content.parts[0].text;
+    const rawResultText = data.candidates[0].content.parts[0].text;
+    const finalResultText = deduplicateText(rawResultText);
+
     tArea.value = "✨ [完了] オンライン解析＆自動保存を実行しました！\n\n" + finalResultText;
     document.getElementById('status').textContent = 'ステータス: 待機中 (オンライン)';
 
@@ -198,14 +210,19 @@ export async function processAudio(blob) {
     const lang = document.getElementById('langSelect').value;
     const task = document.getElementById('taskSelect').value;
 
+    // Whisper生成パラメータの調整（ループ現象の抑制）
     const result = await transcriber(audioData, {
       chunk_length_s: 30,
       stride_length_s: 5,
       language: lang,
       task: task,
+      no_repeat_ngram_size: 3,
+      repetition_penalty: 1.2
     });
 
-    const finalResultText = result.text;
+    const rawResultText = result.text;
+    const finalResultText = deduplicateText(rawResultText);
+
     tArea.value = "✨ [3/3] 解析完了＆自動保存を実行します！\n\n" + finalResultText;
     document.getElementById('status').textContent = `ステータス: 待機中 (${engine})`;
 
