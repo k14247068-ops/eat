@@ -19,7 +19,7 @@ export async function initApp() {
   if (engine === 'online') {
     transcriber = null;
     currentLoadedModel = null;
-    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（話者分離機能が有効化されています）";
+    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（設定画面から Flash / Flash-Lite / Pro を選択可能です）";
     status.textContent = "ステータス: 待機中 (オンライン)";
     return;
   }
@@ -125,31 +125,31 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI (Gemini 3.8 Flash - 話者分離プロンプト強化版)
+// オンラインAPI (Gemini API - モデル選択対応版)
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKey = document.getElementById('apiKeyInput').value.trim();
+  const selectedModel = document.getElementById('geminiModelSelect')?.value || 'gemini-3.8-flash';
   
   if (!apiKey) {
     alert("オンラインモードを使用するには、設定画面で Gemini API キーを入力してください。");
     return;
   }
 
-  tArea.value = "🌐 [1/2] 音声データを安全にエンコード中...\n";
+  tArea.value = `🌐 [1/2] 音声データをエンコード中...\n`;
   
   try {
     const base64Data = await blobToBase64(blob);
 
-    tArea.value += "🌐 [2/2] Gemini APIで高精度な話者分離＆文字起こしを実行中...\n";
+    tArea.value += `🌐 [2/2] Gemini API (${selectedModel}) で話者分離＆解析を実行中...\n`;
 
-    // プロンプトにて「話者A」「話者B」に区切って書き起こすよう指定
     const promptText = `以下の音声を正確に日本語で文字起こししてください。
 【要件】
 1. 声質や対話の流れから人物を識別し、会話ごとに「話者A:」「話者B:」「話者C:」のように発言者を分けて記述してください。
 2. 相槌や重複、繰り返しのループがある場合は自然な文章に整形してください。
 3. 前後の挨拶や要約などの余計な文章は一切含めず、話者分離された文字起こし結果のみを出力してください。`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -175,7 +175,7 @@ async function processAudioOnline(blob) {
     const rawResultText = data.candidates[0].content.parts[0].text;
     const finalResultText = deduplicateText(rawResultText);
 
-    tArea.value = "✨ [完了] 話者分離の解析＆自動保存が完了しました！\n\n" + finalResultText;
+    tArea.value = `✨ [完了] オンライン解析 (${selectedModel}) ＆自動保存を実行しました！\n\n` + finalResultText;
     document.getElementById('status').textContent = 'ステータス: 待機中 (オンライン)';
 
     if (finalResultText.trim().length > 0) {
@@ -263,6 +263,7 @@ export function setupListeners() {
   const settingEngineSelect = document.getElementById('settingEngineSelect');
   const apiKeyContainer = document.getElementById('apiKeyContainer');
   const apiKeyInput = document.getElementById('apiKeyInput');
+  const geminiModelSelect = document.getElementById('geminiModelSelect');
   const langSelect = document.getElementById('langSelect');
   const taskSelect = document.getElementById('taskSelect');
 
@@ -280,6 +281,7 @@ export function setupListeners() {
   updateEngineUI(savedEngine);
 
   if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
+  if(localStorage.getItem('gemini_model') && geminiModelSelect) geminiModelSelect.value = localStorage.getItem('gemini_model');
   if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
   if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
 
@@ -293,6 +295,7 @@ export function setupListeners() {
   settingEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
 
   apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
+  if(geminiModelSelect) geminiModelSelect.onchange = (e) => localStorage.setItem('gemini_model', e.target.value);
   langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
   taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
 
