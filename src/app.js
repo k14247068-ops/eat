@@ -59,7 +59,9 @@ export async function initApp() {
       }
     };
 
+    // type プロパティを指定して Unsupported model type エラーを回避
     transcriber = await pipeline('automatic-speech-recognition', modelName, {
+      type: 'whisper',
       progress_callback: progressCallback
     });
 
@@ -84,12 +86,9 @@ function categorizeText(text) {
   return 'その他';
 }
 
-// ループ出力（連続重複単語・フレーズ）のクレンジング処理
 function deduplicateText(text) {
   if (!text) return "";
-  // 3文字以上の連続繰り返し（例：「あるのか？あるのか？」「でもでもでも」など）を1回に圧縮
   let cleaned = text.replace(/(.{3,})\1+/g, '$1');
-  // 1〜2文字の極端な連続繰り返し（例：「あああああ」）を抑止
   cleaned = cleaned.replace(/(.)\1{4,}/g, '$1');
   return cleaned;
 }
@@ -210,7 +209,6 @@ export async function processAudio(blob) {
     const lang = document.getElementById('langSelect').value;
     const task = document.getElementById('taskSelect').value;
 
-    // Whisper生成パラメータの調整（ループ現象の抑制）
     const result = await transcriber(audioData, {
       chunk_length_s: 30,
       stride_length_s: 5,
