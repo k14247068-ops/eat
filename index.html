@@ -96,11 +96,12 @@
 <body>
   <div class="sidebar">
     <h2>Whisper App</h2>
-    <button id="tabMain" class="nav-btn active">🎙️ 文字起こし</button>
-    <button id="tabSettings" class="nav-btn">⚙️ 設定</button>
+    <button id="tabMain" class="nav-btn active" onclick="switchTab('main')">🎙️ 文字起こし</button>
+    <button id="tabSettings" class="nav-btn" onclick="switchTab('settings')">⚙️ 設定</button>
   </div>
 
   <div class="content">
+    <!-- メイン画面 -->
     <div id="secMain" class="section active">
       <h1>🎙️ 音声文字起こし</h1>
       <div class="card">
@@ -126,6 +127,7 @@
       </div>
     </div>
 
+    <!-- 設定画面 -->
     <div id="secSettings" class="section">
       <h1>アプリ設定</h1>
       <div class="card">
@@ -166,6 +168,27 @@
       </div>
     </div>
   </div>
+
+  <script>
+    function switchTab(tabName) {
+      const tabMain = document.getElementById('tabMain');
+      const tabSettings = document.getElementById('tabSettings');
+      const secMain = document.getElementById('secMain');
+      const secSettings = document.getElementById('secSettings');
+
+      if (tabName === 'main') {
+        tabMain.classList.add('active');
+        tabSettings.classList.remove('active');
+        secMain.classList.add('active');
+        secSettings.classList.remove('active');
+      } else {
+        tabSettings.classList.add('active');
+        tabMain.classList.remove('active');
+        secSettings.classList.add('active');
+        secMain.classList.remove('active');
+      }
+    }
+  </script>
 
   <script type="module">
     import { initApp, setupListeners } from './src/app.js';
