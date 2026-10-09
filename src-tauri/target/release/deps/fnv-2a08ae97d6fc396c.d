@@ -1,0 +1,7 @@
+/workspaces/eat/src-tauri/target/release/deps/fnv-2a08ae97d6fc396c.d: /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fnv-1.0.7/lib.rs
+
+/workspaces/eat/src-tauri/target/release/deps/libfnv-2a08ae97d6fc396c.rlib: /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fnv-1.0.7/lib.rs
+
+/workspaces/eat/src-tauri/target/release/deps/libfnv-2a08ae97d6fc396c.rmeta: /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fnv-1.0.7/lib.rs
+
+/home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fnv-1.0.7/lib.rs:

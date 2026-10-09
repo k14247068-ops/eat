@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=
+Comment=Whisper AI Transcription App
+Exec=whisper-app
+StartupWMClass=whisper-app
+Icon=whisper-app
+Name=Whisper App
+Terminal=false
+Type=Application
