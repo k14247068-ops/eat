@@ -130,7 +130,7 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI
+// オンラインAPI解析
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKeyInput = document.getElementById('apiKeyInput');
@@ -246,27 +246,6 @@ export async function processAudio(blob) {
 }
 
 export function setupListeners() {
-  const tabMain = document.getElementById('tabMain');
-  const tabSettings = document.getElementById('tabSettings');
-  const secMain = document.getElementById('secMain');
-  const secSettings = document.getElementById('secSettings');
-
-  if (tabMain && tabSettings && secMain && secSettings) {
-    tabMain.onclick = () => {
-      tabMain.classList.add('active');
-      tabSettings.classList.remove('active');
-      secMain.classList.add('active');
-      secSettings.classList.remove('active');
-    };
-
-    tabSettings.onclick = () => {
-      tabSettings.classList.add('active');
-      tabMain.classList.remove('active');
-      secSettings.classList.add('active');
-      secMain.classList.remove('active');
-    };
-  }
-
   const mainEngineSelect = document.getElementById('mainEngineSelect');
   const settingEngineSelect = document.getElementById('settingEngineSelect');
   const apiKeyContainer = document.getElementById('apiKeyContainer');
@@ -301,7 +280,11 @@ export function setupListeners() {
   if (settingEngineSelect) settingEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
 
   if (apiKeyInput) apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
-  if (geminiModelSelect) geminiModelSelect.onchange = (e) => localStorage.setItem('gemini_model', e.target.value);
+  if (geminiModelSelect) {
+    geminiModelSelect.onchange = (e) => {
+      localStorage.setItem('gemini_model', e.target.value);
+    };
+  }
   if (langSelect) langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
   if (taskSelect) taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
 
@@ -320,7 +303,6 @@ export function setupListeners() {
   if (recBtn) {
     recBtn.onclick = async () => {
       const status = document.getElementById('status');
-      
       if (!rec) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
