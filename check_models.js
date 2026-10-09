@@ -4,7 +4,254 @@ readline.question('取得したAPIキーを貼り付けてEnterを押してく�
   fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key.trim()}`)
     .then(r => r.json())
     .then(d => {
-      console.log('\n🌟 【あなたの環境で使えるAIモデル一覧】 🌟');
+      console.log('\cat << 'EOF' > index.html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whisper AI 文字起こしアプリ</title>
+  <style>
+    :root {
+      --bg-main: #181825;
+      --bg-sidebar: #1e1e2e;
+      --bg-card: #313244;
+      --accent: #cba6f7;
+      --text-main: #cdd6f4;
+      --text-sub: #a6adc8;
+      --border: #45475a;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 220px;
+      background: var(--bg-sidebar);
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-right: 1px solid var(--border);
+    }
+    .sidebar h2 {
+      font-size: 1.2rem;
+      color: var(--accent);
+      margin-bottom: 20px;
+      padding-left: 10px;
+    }
+    .nav-btn {
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      padding: 12px 15px;
+      border-radius: 8px;
+      text-align: left;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+    .nav-btn.active { background: var(--bg-card); color: var(--accent); font-weight: bold; }
+    
+    .content {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+    }
+    .section { display: none; }
+    .section.active { display: block; }
+    
+    .card {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    label { display: block; margin-bottom: 8px; color: var(--text-sub); font-size: 0.9rem; }
+    select, input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 10px;
+      border-radius: 6px;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+    }
+    button.action-btn {
+      background: var(--accent);
+      color: #11111b;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    textarea { height: 300px; resize: vertical; line-height: 1.5; }
+
+    .progress-container {
+      margin-top: 10px;
+      margin-bottom: 15px;
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 12px;
+      background: #45475a;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #89b4fa, #cba6f7);
+      transition: width 0.3s ease;
+    }
+    .progress-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Whisper App</h2>
+    <button id="tabMain" class="nav-btn active" onclick="switchTab('main')">🎙️ 文字起こし</button>
+    <button id="tabSettings" class="nav-btn" onclick="switchTab('settings')">⚙️ 設定</button>
+  </div>
+
+  <div class="content">
+    <!-- メイン画面 -->
+    <div id="secMain" class="section active">
+      <h1>🎙️ 音声文字起こし</h1>
+      <div class="card">
+        <label>使用エンジン</label>
+        <select id="mainEngineSelect">
+          <option value="tiny">オフライン (軽量: tiny)</option>
+          <option value="base" selected>オフライン (バランス: base)</option>
+          <option value="small">オフライン (精度高め: small)</option>
+          <option value="online">オンラインAPI (Gemini)</option>
+        </select>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <input type="file" id="audioFile" accept="audio/*" style="display:none;">
+          <button class="action-btn" onclick="document.getElementById('audioFile').click()">📁 ファイル選択</button>
+          <button class="action-btn" id="fileBtn">⚡ 解析実行</button>
+          <button class="action-btn" id="recBtn" style="background: #f38ba8;">🔴 録音する</button>
+        </div>
+
+        <div id="status" style="color: var(--accent); margin-bottom: 5px; font-weight: bold;">ステータス: 待機中</div>
+
+        <div id="progressContainer" class="progress-container" style="display: none;">
+          <div class="progress-stats">
+            <span id="progressText">解析中... 0%</span>
+            <span id="timeEstimate">予想終了時間: 計算中...</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="progressBarFill" class="progress-bar-fill"></div>
+          </div>
+          <div class="progress-stats">
+            <span id="elapsedTime">経過時間: 0秒</span>
+            <span id="remainingTime">残り時間: 約 -- 秒</span>
+          </div>
+        </div>
+
+        <div id="autoSaveStatus" style="color: #a6e3a1; margin-bottom: 10px;"></div>
+
+        <textarea id="transcriptArea" placeholder="ここに文字起こし結果が表示されます..."></textarea>
+      </div>
+    </div>
+
+    <!-- 設定画面 -->
+    <div id="secSettings" class="section">
+      <h1>アプリ設定</h1>
+      <div class="card">
+        <h3>🔧 詳細設定</h3>
+        
+        <label>エンジン選択（メイン画面と連動）</label>
+        <select id="settingEngineSelect">
+          <option value="tiny">オフライン (軽量: tiny)</option>
+          <option value="base">オフライン (バランス: base)</option>
+          <option value="small">オフライン (精度高め: small)</option>
+          <option value="online">オンラインAPI (Gemini)</option>
+        </select>
+
+        <div id="apiKeyContainer" style="display: none;">
+          <label>Gemini API モデル選択</label>
+          <select id="geminiModelSelect">
+            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (標準・バランス)</option>
+            <option value="gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite (最軽量・爆速)</option>
+            <option value="gemini-3.8-pro">Gemini 3.8 Pro (最高精度・複雑な会話向け)</option>
+          </select>
+
+          <label>Gemini API キー</label>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy..." />
+          <p style="font-size: 0.8rem; color: var(--text-sub);">※オンラインモードで使用するAPIキーです。</p>
+        </div>
+
+        <label>認識言語（オフライン時）</label>
+        <select id="langSelect">
+          <option value="japanese" selected>日本語 (Japanese)</option>
+          <option value="english">英語 (English)</option>
+        </select>
+
+        <label>タスク（オフライン時）</label>
+        <select id="taskSelect">
+          <option value="transcribe" selected>文字起こし (Transcribe)</option>
+          <option value="translate">英語翻訳 (Translate)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabName) {
+      const tabMain = document.getElementById('tabMain');
+      const tabSettings = document.getElementById('tabSettings');
+      const secMain = document.getElementById('secMain');
+      const secSettings = document.getElementById('secSettings');
+
+      if (tabName === 'main') {
+        tabMain.classList.add('active');
+        tabSettings.classList.remove('active');
+        secMain.classList.add('active');
+        secSettings.classList.remove('active');
+      } else {
+        tabSettings.classList.add('active');
+        tabMain.classList.remove('active');
+        secSettings.classList.add('active');
+        secMain.classList.remove('active');
+      }
+    }
+  </script>
+
+  <script type="module">
+    import { initApp, setupListeners } from './src/app.js';
+    window.addEventListener('DOMContentLoaded', () => {
+      setupListeners();
+      initApp();
+    });
+  </script>
+</body>
+</html>
+EOFn🌟 【あなたの環境で使えるAIモデル一覧】 🌟');
       if(d.models) {
         d.models
           .filter(m => m.name.includes('gemini') && m.supportedGenerationMethods.includes('generateContent'))
