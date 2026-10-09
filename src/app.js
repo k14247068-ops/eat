@@ -8,13 +8,16 @@ let mediaRecorder;
 let audioChunks = [];
 
 function getCurrentEngine() {
-  return document.getElementById('mainEngineSelect').value;
+  const el = document.getElementById('mainEngineSelect');
+  return el ? el.value : 'base';
 }
 
 export async function initApp() {
   const tArea = document.getElementById('transcriptArea');
   const status = document.getElementById('status');
   const engine = getCurrentEngine();
+
+  if (!tArea || !status) return;
 
   if (engine === 'online') {
     transcriber = null;
@@ -109,8 +112,10 @@ function autoSaveTranscript(text) {
   URL.revokeObjectURL(url);
 
   const autoSaveStatus = document.getElementById('autoSaveStatus');
-  autoSaveStatus.textContent = `💾 自動保存完了: 「${category}」 (${fileName})`;
-  setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
+  if (autoSaveStatus) {
+    autoSaveStatus.textContent = `💾 自動保存完了: 「${category}」 (${fileName})`;
+    setTimeout(() => { autoSaveStatus.textContent = ''; }, 6000);
+  }
 }
 
 function blobToBase64(blob) {
@@ -125,10 +130,11 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI (Gemini API - モデル選択対応版)
+// オンラインAPI
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   const selectedModel = document.getElementById('geminiModelSelect')?.value || 'gemini-3.8-flash';
   
   if (!apiKey) {
@@ -245,19 +251,21 @@ export function setupListeners() {
   const secMain = document.getElementById('secMain');
   const secSettings = document.getElementById('secSettings');
 
-  tabMain.onclick = () => {
-    tabMain.classList.add('active');
-    tabSettings.classList.remove('active');
-    secMain.classList.add('active');
-    secSettings.classList.remove('active');
-  };
+  if (tabMain && tabSettings && secMain && secSettings) {
+    tabMain.onclick = () => {
+      tabMain.classList.add('active');
+      tabSettings.classList.remove('active');
+      secMain.classList.add('active');
+      secSettings.classList.remove('active');
+    };
 
-  tabSettings.onclick = () => {
-    tabSettings.classList.add('active');
-    tabMain.classList.remove('active');
-    secSettings.classList.add('active');
-    secMain.classList.remove('active');
-  };
+    tabSettings.onclick = () => {
+      tabSettings.classList.add('active');
+      tabMain.classList.remove('active');
+      secSettings.classList.add('active');
+      secMain.classList.remove('active');
+    };
+  }
 
   const mainEngineSelect = document.getElementById('mainEngineSelect');
   const settingEngineSelect = document.getElementById('settingEngineSelect');
@@ -268,22 +276,20 @@ export function setupListeners() {
   const taskSelect = document.getElementById('taskSelect');
 
   const updateEngineUI = (engine) => {
-    mainEngineSelect.value = engine;
-    settingEngineSelect.value = engine;
-    if (engine === 'online') {
-      apiKeyContainer.style.display = 'block';
-    } else {
-      apiKeyContainer.style.display = 'none';
+    if (mainEngineSelect) mainEngineSelect.value = engine;
+    if (settingEngineSelect) settingEngineSelect.value = engine;
+    if (apiKeyContainer) {
+      apiKeyContainer.style.display = (engine === 'online') ? 'block' : 'none';
     }
   };
 
   const savedEngine = localStorage.getItem('whisper_engine') || 'base';
   updateEngineUI(savedEngine);
 
-  if(localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
-  if(localStorage.getItem('gemini_model') && geminiModelSelect) geminiModelSelect.value = localStorage.getItem('gemini_model');
-  if(localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
-  if(localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
+  if (apiKeyInput && localStorage.getItem('gemini_api_key')) apiKeyInput.value = localStorage.getItem('gemini_api_key');
+  if (geminiModelSelect && localStorage.getItem('gemini_model')) geminiModelSelect.value = localStorage.getItem('gemini_model');
+  if (langSelect && localStorage.getItem('whisper_lang')) langSelect.value = localStorage.getItem('whisper_lang');
+  if (taskSelect && localStorage.getItem('whisper_task')) taskSelect.value = localStorage.getItem('whisper_task');
 
   const handleEngineChange = async (newEngine) => {
     localStorage.setItem('whisper_engine', newEngine);
@@ -291,45 +297,51 @@ export function setupListeners() {
     await initApp();
   };
 
-  mainEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
-  settingEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
+  if (mainEngineSelect) mainEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
+  if (settingEngineSelect) settingEngineSelect.onchange = (e) => handleEngineChange(e.target.value);
 
-  apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
-  if(geminiModelSelect) geminiModelSelect.onchange = (e) => localStorage.setItem('gemini_model', e.target.value);
-  langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
-  taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
+  if (apiKeyInput) apiKeyInput.oninput = () => localStorage.setItem('gemini_api_key', apiKeyInput.value);
+  if (geminiModelSelect) geminiModelSelect.onchange = (e) => localStorage.setItem('gemini_model', e.target.value);
+  if (langSelect) langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
+  if (taskSelect) taskSelect.onchange = () => localStorage.setItem('whisper_task', taskSelect.value);
 
-  document.getElementById('fileBtn').onclick = () => {
-    const file = document.getElementById('audioFile').files[0];
-    if (!file) return alert("音声ファイルを選択してください。");
-    document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
-    processAudio(file);
-  };
+  const fileBtn = document.getElementById('fileBtn');
+  if (fileBtn) {
+    fileBtn.onclick = () => {
+      const audioFile = document.getElementById('audioFile');
+      const file = audioFile ? audioFile.files[0] : null;
+      if (!file) return alert("音声ファイルを選択してください。");
+      document.getElementById('status').textContent = 'ステータス: 📁 ファイルを解析中...';
+      processAudio(file);
+    };
+  }
 
-  document.getElementById('recBtn').onclick = async () => {
-    const btn = document.getElementById('recBtn');
-    const status = document.getElementById('status');
-    
-    if (!rec) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          status.textContent = 'ステータス: 音声を解析中...';
-          processAudio(audioBlob);
-        };
-        mediaRecorder.start();
-        rec = true;
-        btn.textContent = '⏹️ 録音停止'; btn.style.background = '#a6e3a1';
-        status.textContent = 'ステータス: 🎙️ 録音中...';
-      } catch (err) { alert('マイクエラー: ' + err.message); }
-    } else {
-      mediaRecorder.stop();
-      rec = false;
-      btn.textContent = '🔴 録音する'; btn.style.background = '#f38ba8';
-    }
-  };
+  const recBtn = document.getElementById('recBtn');
+  if (recBtn) {
+    recBtn.onclick = async () => {
+      const status = document.getElementById('status');
+      
+      if (!rec) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            if (status) status.textContent = 'ステータス: 音声を解析中...';
+            processAudio(audioBlob);
+          };
+          mediaRecorder.start();
+          rec = true;
+          recBtn.textContent = '⏹️ 録音停止'; recBtn.style.background = '#a6e3a1';
+          if (status) status.textContent = 'ステータス: 🎙️ 録音中...';
+        } catch (err) { alert('マイクエラー: ' + err.message); }
+      } else {
+        mediaRecorder.stop();
+        rec = false;
+        recBtn.textContent = '🔴 録音する'; recBtn.style.background = '#f38ba8';
+      }
+    };
+  }
 }
