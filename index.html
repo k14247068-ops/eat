@@ -186,17 +186,18 @@
           <option value="online">オンラインAPI (Gemini)</option>
         </select>
 
-        <div id="apiKeyContainer" style="display: none;">
-          <label>Gemini API モデル選択</label>
+        <!-- オンライン設定コンテナ -->
+        <div id="apiKeyContainer" style="display: none; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <label style="color: var(--accent); font-weight: bold;">⚡ Gemini API モデル選択</label>
           <select id="geminiModelSelect">
-            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (標準・バランス)</option>
-            <option value="gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite (最軽量・爆速)</option>
-            <option value="gemini-3.8-pro">Gemini 3.8 Pro (最高精度・複雑な会話向け)</option>
+            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (標準・バランス型)</option>
+            <option value="gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite (最軽量・爆速型)</option>
+            <option value="gemini-3.8-pro">Gemini 3.8 Pro (最高精度・長尺向け)</option>
           </select>
 
-          <label>Gemini API キー</label>
+          <label style="color: var(--accent); font-weight: bold;">🔑 Gemini API キー</label>
           <input type="password" id="apiKeyInput" placeholder="AIzaSy..." />
-          <p style="font-size: 0.8rem; color: var(--text-sub);">※オンラインモードで使用するAPIキーです。</p>
+          <p style="font-size: 0.8rem; color: var(--text-sub); margin-top: -10px;">※オンラインモードで使用するGoogle Gemini APIキーです。</p>
         </div>
 
         <label>認識言語（オフライン時）</label>
