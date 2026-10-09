@@ -77,7 +77,8 @@ export async function initApp() {
   if (engine === 'online') {
     transcriber = null;
     currentLoadedModel = null;
-    tArea.value = "✨ オンラインAPIモードの準備が完了しました！\n（設定画面から Flash / Flash-Lite / Pro を選択可能です）";
+    const selectedModel = document.getElementById('geminiModelSelect')?.value || 'gemini-3.8-flash';
+    tArea.value = `✨ オンラインAPIモードの準備が完了しました！\n（使用中のモデル: ${selectedModel}）`;
     status.textContent = "ステータス: 待機中 (オンライン)";
     resetProgressUI();
     return;
@@ -176,7 +177,7 @@ function blobToBase64(blob) {
   });
 }
 
-// オンラインAPI解析（プログレス連動）
+// オンラインAPI解析
 async function processAudioOnline(blob) {
   const tArea = document.getElementById('transcriptArea');
   const apiKeyInput = document.getElementById('apiKeyInput');
@@ -194,7 +195,7 @@ async function processAudioOnline(blob) {
   try {
     const base64Data = await blobToBase64(blob);
 
-    updateProgressUI(40, "Gemini APIに送信中・解析実行中...");
+    updateProgressUI(40, `${selectedModel} に送信・解析実行中...`);
     tArea.value += `🌐 [2/2] Gemini API (${selectedModel}) で話者分離＆解析を実行中...\n`;
 
     const promptText = `以下の音声を正確に日本語で文字起こししてください。
@@ -203,12 +204,11 @@ async function processAudioOnline(blob) {
 2. 相槌や重複、繰り返しのループがある場合は自然な文章に整形してください。
 3. 前後の挨拶や要約などの余計な文章は一切含めず、話者分離された文字起こし結果のみを出力してください。`;
 
-    // 模擬的な進行シミュレーション（API応答待ち中のパーセント進捗）
     let simPercent = 40;
     const simTimer = setInterval(() => {
       if (simPercent < 90) {
         simPercent += 5;
-        updateProgressUI(simPercent, "Gemini APIでAI解析中...");
+        updateProgressUI(simPercent, `${selectedModel} でAI解析中...`);
       }
     }, 1000);
 
@@ -359,6 +359,7 @@ export function setupListeners() {
   if (geminiModelSelect) {
     geminiModelSelect.onchange = (e) => {
       localStorage.setItem('gemini_model', e.target.value);
+      initApp();
     };
   }
   if (langSelect) langSelect.onchange = () => localStorage.setItem('whisper_lang', langSelect.value);
